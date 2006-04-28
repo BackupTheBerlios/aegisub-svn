@@ -56,7 +56,7 @@
 #include "utils.h"
 #include "md5.h"
 #include "dialog_progress.h"
-#include "../prs/prs.h"
+#include <prs.h>
 
 
 //////////////////////
