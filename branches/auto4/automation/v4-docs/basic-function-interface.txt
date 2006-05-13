@@ -318,7 +318,7 @@ These are a series of global variables, the script author can set. They are
 purely informational, and won't have any actual influence on how the script
 is treated.
 
-None of these are required.
+None of these are required, but it is recommended to provide them.
 
 These should never be present in include files.
 

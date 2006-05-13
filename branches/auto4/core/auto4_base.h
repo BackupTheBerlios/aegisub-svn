@@ -39,10 +39,15 @@
 #define AUTO4_CORE_H
 
 #include <wx/string.h>
+#include <wx/event.h>
 #include <vector>
 
 #include "ass_export_filter.h"
 #include "subtitle_format.h"
+
+
+DECLARE_EVENT_TYPE(wxEVT_AUTOMATION_SCRIPT_COMPLETED, -1)
+
 
 namespace Automation4 {
 
@@ -67,6 +72,7 @@ namespace Automation4 {
 		SCRIPTFEATURE_MAX // must be last
 	};
 
+
 	// A Feature describes a function provided by a Script.
 	// There are several distinct classes of features.
 	class FeatureMacro;
@@ -89,6 +95,7 @@ namespace Automation4 {
 		const wxString& GetName() const;
 	};
 
+
 	// The Macro feature; adds a menu item that runs script code
 	class FeatureMacro : public Feature {
 	private:
@@ -106,6 +113,7 @@ namespace Automation4 {
 		virtual void Process(/* TODO: this needs arguments */) = 0;
 	};
 
+
 	// The Export Filter feature; adds a new export filter
 	class FeatureFilter : public Feature, public AssExportFilter {
 	protected:
@@ -119,6 +127,7 @@ namespace Automation4 {
 		//   GetConfigDialogWindow
 		//   LoadSettings
 	};
+
 
 	// The Subtitle Format feature; adds new subtitle format readers/writers
 	class FeatureSubtitleFormat : public Feature, public SubtitleFormat {
@@ -139,6 +148,7 @@ namespace Automation4 {
 
 		// Subclasses should implement ReadFile and/or WriteFile here
 	};
+
 
 	// Base class for Scripts
 	class Script {
@@ -169,6 +179,7 @@ namespace Automation4 {
 		const std::vector<Feature*>& GetFeatures() const;
 	};
 
+
 	// Manages loaded scripts; for whatever reason, multiple managers might be instantiated. In truth, this is more
 	// like a macro manager at the moment, since Export Filter and Subtitle Format are already managed by other
 	// classes.
@@ -176,7 +187,7 @@ namespace Automation4 {
 	private:
 		std::vector<Script*> scripts;
 
-		std::vector<Feature*> macros[MACROMENU_MAX]; // array of vectors...
+		std::vector<const FeatureMacro*> macros[MACROMENU_MAX]; // array of vectors...
 
 	public:
 		ScriptManager();
@@ -186,18 +197,19 @@ namespace Automation4 {
 
 		const std::vector<Script*>& GetScripts() const;
 
-		const std::vector<Feature*>& GetMacros(MacroMenu menu) const;
+		const std::vector<const FeatureMacro*>& GetMacros(MacroMenu menu);
 		// No need to have getters for the other kinds of features, I think.
 		// They automatically register themselves in the relevant places.
 	};
+
 
 	// Script factory; each scripting engine should create exactly one instance of this object and register it.
 	// This is used to create Script objects from a file.
 	class ScriptFactory {
 	private:
 		static std::vector<ScriptFactory*> factories;
-		ScriptFactory() { }
 	protected:
+		ScriptFactory() { }
 		wxString engine_name;
 	public:
 		virtual Script* Produce(const wxString &filename) const = 0;

@@ -54,6 +54,8 @@
 #include "ass_dialogue.h"
 #include "subs_grid.h"
 
+#include "auto4_base.h"
+
 
 ///////////////////
 // wxWidgets macro
@@ -95,6 +97,10 @@ bool AegisubApp::OnInit() {
 			Options.Save();
 		}
 		locale.Init(lang);
+
+		// Load Automation scripts
+		global_scripts = new Automation4::ScriptManager();
+		global_scripts->Add(Automation4::ScriptFactory::CreateFromFile(_T("automation/autoload/test1.lua")));
 
 		// Load export filters
 		AssExportFilterChain::PrepareFilters();

@@ -41,6 +41,7 @@
 ///////////////////
 // Include headers
 #include <wx/wxprec.h>
+#include <vector>
 
 
 ////////////////////
@@ -53,6 +54,7 @@ class SubsEditBox;
 class AudioBox;
 class VideoBox;
 class AegisubFileDropTarget;
+namespace Automation4 { class FeatureMacro; };
 
 
 ////////////////////
@@ -90,6 +92,9 @@ private:
 	wxComboBox *ZoomBox;
 
 	wxWindow *PreviousFocus;
+
+	std::vector<const Automation4::FeatureMacro*> activeMacroItems;
+	void AddMacroMenuItems(wxMenu *menu, const std::vector<const Automation4::FeatureMacro*> &macros);
 
 	void InitToolbar();
 	void InitContents();
@@ -196,6 +201,8 @@ private:
 	void OnOpenTimingProcessor (wxCommandEvent &event);
 	void OnOpenHotkeys (wxCommandEvent &event);
 
+	void OnAutomationMacro(wxCommandEvent &event);
+
 	void OnNextFrame(wxCommandEvent &event);
 	void OnPrevFrame(wxCommandEvent &event);
 	void OnFocusSeek(wxCommandEvent &event);
@@ -280,7 +287,7 @@ enum {
 	Menu_Video_AR_Full,
 	Menu_Video_AR_Wide,
 	Menu_Video_Select_Visible,
-
+	
 	Menu_Audio_Open_File,
 	Menu_Audio_Open_From_Video,
 	Menu_Audio_Close,
@@ -357,9 +364,15 @@ enum {
 	Video_Track_Link_File,
 	Video_Track_Movement_Empty,
 
+	Menu_Edit_Automation_Splitter,
+	Menu_Video_Automation_Splitter,
+	Menu_Audio_Automation_Splitter,
+	Menu_Tools_Automation_Splitter,
+
 	Menu_File_Recent = 2000,
 	Menu_Video_Recent = 2200,
-	Menu_Audio_Recent = 2400
+	Menu_Audio_Recent = 2400,
+	Menu_Automation_Macro = 2600,
 };
 
 

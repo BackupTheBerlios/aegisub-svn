@@ -45,6 +45,7 @@
 #include <fstream>
 #include "aegisublocale.h"
 
+#include "auto4_base.h"
 
 //////////////
 // Prototypes
@@ -61,6 +62,7 @@ private:
 public:
 	AegisubLocale locale;
 	FrameMain *frame;
+	Automation4::ScriptManager *global_scripts;
 
 	static wxString fullPath;
 	static wxString folderName;
@@ -81,6 +83,8 @@ public:
 	//int OnRun();
 	DECLARE_EVENT_TABLE()
 };
+
+DECLARE_APP(AegisubApp)
 
 
 ////////////////

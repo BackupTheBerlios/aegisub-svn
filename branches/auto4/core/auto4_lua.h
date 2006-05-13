@@ -40,27 +40,24 @@
 
 #include "auto4_base.h"
 #include <wx/thread.h>
+#include <wx/event.h>
 #include <lua.h>
 #include <lauxlib.h>
 
 namespace Automation4 {
 
-	class LuaPackage;
-
-	// A lua_State with a mutex
-	struct LuaState {
+	class LuaFeature : public Feature {
+	protected:
 		lua_State *L;
-		wxMutex m;
-		LuaState();
-		~LuaState();
+		LuaFeature(lua_State *_L, ScriptFeatureClass _featureclass, wxString &_name);
+		void RegisterFeature();
 	};
 
-	// Implement the Lua scripting engine
 	class LuaScript : public Script {
-		friend class LuaPackage;
+		friend class LuaFeature;
+
 	private:
-		LuaState *L;
-		std::vector<LuaPackage*> packages;
+		lua_State *L;
 
 		void Create(); // load script and create internal structures etc.
 		void Destroy(); // destroy internal structures, unreg features and delete environment
@@ -76,46 +73,23 @@ namespace Automation4 {
 	// This object should be created on the stack in the function that does the call.
 	class LuaThreadedCall : public wxThread {
 	private:
-		LuaState *L;
+		lua_State *L;
+		wxEvtHandler *evthandler;
 		int nargs;
 		int nresults;
-	protected:
+	public:
+		LuaThreadedCall(lua_State *_L, int _nargs, int _nresults);
 		virtual ExitCode Entry();
-	public:
-		LuaThreadedCall(LuaState *_L, int _nargs, int _nresults);
 	};
 
-	// Base class for packages of C functions that can be installed
-	class LuaPackage {
+	class LuaFeatureMacro : public LuaFeature, FeatureMacro {
 	protected:
-		// use the standard luaL_Reg arrays for storing library info, but note
-		// that luaL_register() isn't used for the registering. (it doesn't support
-		// the namespace stuff i want.)
-		LuaPackage(LuaScript *_script, const char *package_name, const luaL_Reg *functions);
-
-		LuaState *L;
-		static LuaPackage *GetObject(const char *package_name);
-
+		LuaFeatureMacro(wxString &_name, wxString &_description, MacroMenu _menu, lua_State *_L);
 	public:
+		static int LuaRegister(lua_State *L);
 
-	};
-
-	class LuaPackageProgress : public LuaPackage {
-	private:
-		static int f_show(lua_State *L);
-		static int f_set(lua_State *L);
-		static int f_task(lua_State *L);
-		static int f_title(lua_State *L);
-		static int f_is_cancelled(lua_State *L);
-
-		wxString task;
-		wxString title;
-		bool is_cancelled;
-
-		static const char *package_name;
-		static const luaL_Reg *functions;
-	public:
-		LuaPackageProgress(LuaState *L);
+		virtual bool Validate(/* FIXME */);
+		virtual void Process(/* FIXME */);
 	};
 
 };

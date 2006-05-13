@@ -199,12 +199,20 @@ namespace Automation4 {
 
 	void ScriptManager::Add(Script *script)
 	{
-		// TODO
+		for (std::vector<Script*>::iterator i = scripts.begin(); i != scripts.end(); ++i) {
+			if (script == *i) return;
+		}
+		scripts.push_back(script);
 	}
 
 	void ScriptManager::Remove(Script *script)
 	{
-		// TODO
+		for (std::vector<Script*>::iterator i = scripts.begin(); i != scripts.end(); ++i) {
+			if (script == *i) {
+				scripts.erase(i);
+				return;
+			}
+		}
 	}
 
 	const std::vector<Script*>& ScriptManager::GetScripts() const
@@ -212,8 +220,18 @@ namespace Automation4 {
 		return scripts;
 	}
 
-	const std::vector<Feature*>& ScriptManager::GetMacros(MacroMenu menu) const
+	const std::vector<const FeatureMacro*>& ScriptManager::GetMacros(MacroMenu menu)
 	{
+		macros[menu].clear();
+		for (std::vector<Script*>::iterator i = scripts.begin(); i != scripts.end(); ++i) {
+			const std::vector<Feature*> sfs = (*i)->GetFeatures();
+			for (std::vector<Feature*>::const_iterator j = sfs.begin(); j != sfs.end(); ++j) {
+				const FeatureMacro *m = (*j)->AsMacro();
+				if (!m) continue;
+				if (menu == MACROMENU_ALL || m->GetMenu() == menu)
+					macros[menu].push_back(m);
+			}
+		}
 		return macros[menu];
 	}
 
@@ -250,7 +268,7 @@ namespace Automation4 {
 	Script* ScriptFactory::CreateFromFile(const wxString &filename)
 	{
 		for (std::vector<ScriptFactory*>::iterator i = factories.begin(); i != factories.end(); ++i) {
-			Script *s = (*i)->CreateFromFile(filename);
+			Script *s = (*i)->Produce(filename);
 			if (s) return s;
 		}
 		return 0;

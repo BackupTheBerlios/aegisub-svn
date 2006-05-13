@@ -206,6 +206,15 @@ void FrameMain::OnMenuOpen (wxMenuEvent &event) {
 	//Freeze();
 	wxMenu *curMenu = event.GetMenu();
 
+	// Start by cleaning up in macro menu items
+	for (int i = 0; i < activeMacroItems.size(); i++) {
+		wxMenu *p;
+		wxMenuItem *it = MenuBar->FindItem(Menu_Automation_Macro + i, &p);
+		if (it)
+			p->Delete(it);
+	}
+	activeMacroItems.clear();
+
 	// File menu
 	if (curMenu == fileMenu) {
 		// Wipe recent
@@ -294,6 +303,8 @@ void FrameMain::OnMenuOpen (wxMenuEvent &event) {
 			added++;
 		}
 		if (added == 0) RecentVids->Append(Menu_Video_Recent,_T("Empty"))->Enable(false);
+
+		AddMacroMenuItems(videoMenu, wxGetApp().global_scripts->GetMacros(Automation4::MACROMENU_VIDEO));
 	}
 
 	// Audio menu
@@ -323,6 +334,8 @@ void FrameMain::OnMenuOpen (wxMenuEvent &event) {
 			added++;
 		}
 		if (added == 0) RecentAuds->Append(Menu_Audio_Recent,_T("Empty"))->Enable(false);
+
+		AddMacroMenuItems(audioMenu, wxGetApp().global_scripts->GetMacros(Automation4::MACROMENU_AUDIO));
 	}
 
 	// Edit menu
@@ -337,9 +350,30 @@ void FrameMain::OnMenuOpen (wxMenuEvent &event) {
 		RebuildMenuItem(editMenu,Menu_Edit_Cut,wxBITMAP(cut_button),wxBITMAP(cut_disable_button),state);
 		RebuildMenuItem(editMenu,Menu_Edit_Copy,wxBITMAP(copy_button),wxBITMAP(copy_disable_button),state);
 		RebuildMenuItem(editMenu,Menu_Edit_Paste,wxBITMAP(paste_button),wxBITMAP(paste_disable_button),state);
+
+		AddMacroMenuItems(editMenu, wxGetApp().global_scripts->GetMacros(Automation4::MACROMENU_EDIT));
+	}
+
+	else if (curMenu == toolMenu) {
+		AddMacroMenuItems(toolMenu, wxGetApp().global_scripts->GetMacros(Automation4::MACROMENU_TOOLS));
 	}
 
 	//Thaw();
+}
+
+
+//////////////////////////////
+// Macro menu creation helper
+void FrameMain::AddMacroMenuItems(wxMenu *menu, const std::vector<const Automation4::FeatureMacro*> &macros) {
+	if (macros.empty()) {
+		return;
+	}
+
+	int id = 0;
+	for (std::vector<const Automation4::FeatureMacro*>::const_iterator i = macros.begin(); i != macros.end(); ++i) {
+		menu->Append(Menu_Automation_Macro + id, (*i)->GetName(), (*i)->GetDescription());
+		activeMacroItems.push_back(*i);
+	}
 }
 
 
@@ -1236,5 +1270,11 @@ void FrameMain::OnViewAudio (wxCommandEvent &event) {
 // View subs
 void FrameMain::OnViewSubs (wxCommandEvent &event) {
 	SetDisplayMode(0);
+}
+
+
+///////////////////////////////////////////////////////////
+// General handler for all Automation-generated menu items
+void OnAutomationMacro(wxCommandEvent &event) {
 }
 
