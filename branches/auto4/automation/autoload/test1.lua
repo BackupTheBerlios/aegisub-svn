@@ -12,5 +12,12 @@ function macro_test1(subtitles, selected_lines, active_line)
 	showmessage("Hello Automation 4 World!")
 end
 
+function longloop()
+	local s = ""
+	for i = 1, 10000 do
+		s = s .. i
+	end
+	return s
+end
 
-aegisub.register_macro("Hello", "Shows a message", "tools", macro_test1, nil)
+aegisub.register_macro("Hello", "Shows a message", "tools", macro_test1, longloop)

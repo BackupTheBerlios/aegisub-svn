@@ -116,6 +116,7 @@ BEGIN_EVENT_TABLE(FrameMain, wxFrame)
 	EVT_MENU_RANGE(Menu_File_Recent,Menu_File_Recent+100, FrameMain::OnOpenRecentSubs)
 	EVT_MENU_RANGE(Menu_Video_Recent,Menu_Video_Recent+100, FrameMain::OnOpenRecentVideo)
 	EVT_MENU_RANGE(Menu_Audio_Recent,Menu_Audio_Recent+100, FrameMain::OnOpenRecentAudio)
+	EVT_MENU_RANGE(Menu_Automation_Macro,Menu_Automation_Macro+100, FrameMain::OnAutomationMacro)
 
 	EVT_MENU(Menu_File_Open, FrameMain::OnOpenProject)
 	EVT_MENU(Menu_File_Save, FrameMain::OnSaveProject)
@@ -364,14 +365,15 @@ void FrameMain::OnMenuOpen (wxMenuEvent &event) {
 
 //////////////////////////////
 // Macro menu creation helper
-void FrameMain::AddMacroMenuItems(wxMenu *menu, const std::vector<const Automation4::FeatureMacro*> &macros) {
+void FrameMain::AddMacroMenuItems(wxMenu *menu, const std::vector<Automation4::FeatureMacro*> &macros) {
 	if (macros.empty()) {
 		return;
 	}
 
 	int id = 0;
-	for (std::vector<const Automation4::FeatureMacro*>::const_iterator i = macros.begin(); i != macros.end(); ++i) {
-		menu->Append(Menu_Automation_Macro + id, (*i)->GetName(), (*i)->GetDescription());
+	for (std::vector<Automation4::FeatureMacro*>::const_iterator i = macros.begin(); i != macros.end(); ++i) {
+		wxMenuItem * m = menu->Append(Menu_Automation_Macro + id, (*i)->GetName(), (*i)->GetDescription());
+		m->Enable((*i)->Validate(SubsBox->ass, SubsBox->GetAbsoluteSelection(), SubsBox->GetFirstSelRow()));
 		activeMacroItems.push_back(*i);
 	}
 }
@@ -1275,6 +1277,7 @@ void FrameMain::OnViewSubs (wxCommandEvent &event) {
 
 ///////////////////////////////////////////////////////////
 // General handler for all Automation-generated menu items
-void OnAutomationMacro(wxCommandEvent &event) {
+void FrameMain::OnAutomationMacro(wxCommandEvent &event) {
+	activeMacroItems[event.GetId()-Menu_Automation_Macro]->Process(SubsBox->ass, SubsBox->GetAbsoluteSelection(), SubsBox->GetFirstSelRow());
 }
 

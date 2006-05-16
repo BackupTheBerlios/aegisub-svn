@@ -1047,3 +1047,4 @@ wxArrayInt BaseGrid::GetRangeArray(int n1,int n2) {
 	}
 	return target;
 }
+

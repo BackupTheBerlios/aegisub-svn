@@ -127,6 +127,8 @@ public:
 	void CutLines(wxArrayInt lines);
 	void PasteLines(int pos);
 
+	std::vector<int> GetAbsoluteSelection();
+
 	DECLARE_EVENT_TABLE()
 };
 

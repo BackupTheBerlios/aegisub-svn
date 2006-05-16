@@ -46,11 +46,18 @@
 
 namespace Automation4 {
 
-	class LuaFeature : public Feature {
+	class LuaFeature : public virtual Feature {
 	protected:
 		lua_State *L;
+		int myid;
+
 		LuaFeature(lua_State *_L, ScriptFeatureClass _featureclass, wxString &_name);
+
 		void RegisterFeature();
+
+		void GetFeatureFunction(int functionid);
+		void CreateSubtitleFileObject(AssFile *subs);
+		void CreateIntegerArray(std::vector<int> &ints);
 	};
 
 	class LuaScript : public Script {
@@ -82,14 +89,16 @@ namespace Automation4 {
 		virtual ExitCode Entry();
 	};
 
-	class LuaFeatureMacro : public LuaFeature, FeatureMacro {
+	class LuaFeatureMacro : public FeatureMacro, LuaFeature {
+	private:
+		bool no_validate;
 	protected:
 		LuaFeatureMacro(wxString &_name, wxString &_description, MacroMenu _menu, lua_State *_L);
 	public:
 		static int LuaRegister(lua_State *L);
 
-		virtual bool Validate(/* FIXME */);
-		virtual void Process(/* FIXME */);
+		virtual bool Validate(AssFile *subs, std::vector<int> &selected, int active);
+		virtual void Process(AssFile *subs, std::vector<int> &selected, int active);
 	};
 
 };

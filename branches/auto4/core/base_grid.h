@@ -105,7 +105,6 @@ public:
 	int GetFirstSelRow();
 	void SelectVisible();
 	wxArrayInt GetSelection(bool *continuous=NULL);
-
 	void Clear();
 	void UpdateMaps();
 

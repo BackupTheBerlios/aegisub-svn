@@ -52,24 +52,24 @@ namespace Automation4 {
 		return featureclass;
 	}
 
-	const FeatureMacro* Feature::AsMacro() const
+	FeatureMacro* Feature::AsMacro()
 	{
 		if (featureclass == SCRIPTFEATURE_MACRO)
-			return static_cast<const FeatureMacro*>(this);
+			return dynamic_cast<FeatureMacro*>(this);
 		return 0;
 	}
 
-	const FeatureFilter* Feature::AsFilter() const
+	FeatureFilter* Feature::AsFilter()
 	{
 		if (featureclass == SCRIPTFEATURE_FILTER)
-			return static_cast<const FeatureFilter*>(this);
+			return dynamic_cast<FeatureFilter*>(this);
 		return 0;
 	}
 
-	const FeatureSubtitleFormat* Feature::AsSubFormat() const
+	FeatureSubtitleFormat* Feature::AsSubFormat()
 	{
 		if (featureclass == SCRIPTFEATURE_SUBFORMAT)
-			return static_cast<const FeatureSubtitleFormat*>(this);
+			return dynamic_cast<FeatureSubtitleFormat*>(this);
 		return 0;
 	}
 
@@ -220,13 +220,14 @@ namespace Automation4 {
 		return scripts;
 	}
 
-	const std::vector<const FeatureMacro*>& ScriptManager::GetMacros(MacroMenu menu)
+	const std::vector<FeatureMacro*>& ScriptManager::GetMacros(MacroMenu menu)
 	{
 		macros[menu].clear();
 		for (std::vector<Script*>::iterator i = scripts.begin(); i != scripts.end(); ++i) {
-			const std::vector<Feature*> sfs = (*i)->GetFeatures();
+			const std::vector<Feature*> &sfs = (*i)->GetFeatures();
 			for (std::vector<Feature*>::const_iterator j = sfs.begin(); j != sfs.end(); ++j) {
-				const FeatureMacro *m = (*j)->AsMacro();
+				FeatureMacro *m = (*j)->AsMacro();
+				//const FeatureMacro *m = dynamic_cast<const FeatureMacro*>(*j);
 				if (!m) continue;
 				if (menu == MACROMENU_ALL || m->GetMenu() == menu)
 					macros[menu].push_back(m);

@@ -37,12 +37,13 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #include <wx/msgdlg.h>
+#include <assert.h>
 
 namespace Automation4 {
 
 	int lua_callable_showmessage(lua_State *L)
 	{
-		wxString msg(lua_tostring(L, 2), wxConvUTF8);
+		wxString msg(lua_tostring(L, 1), wxConvUTF8);
 		wxMutexGuiLocker gui;
 		wxMessageBox(msg);
 		return 0;
@@ -198,14 +199,41 @@ namespace Automation4 {
 		s->features.push_back(this);
 
 		// get the index+1 it was pushed into
-		int featureid = s->features.size()-1;
+		myid = s->features.size()-1;
 
 		// create table with the functions
 		// get features table
 		lua_getfield(L, LUA_REGISTRYINDEX, "features");
 		lua_pushvalue(L, -2);
-		lua_rawseti(L, -2, featureid);
+		lua_rawseti(L, -2, myid);
 		lua_pop(L, 1);
+	}
+
+	void LuaFeature::GetFeatureFunction(int functionid)
+	{
+		// get feature table
+		lua_getfield(L, LUA_REGISTRYINDEX, "features");
+		// get this feature's function pointers
+		lua_rawgeti(L, -1, myid);
+		// get pointer for validation function
+		lua_rawgeti(L, -1, functionid);
+		lua_remove(L, -2);
+		lua_remove(L, -2);
+	}
+
+	void LuaFeature::CreateSubtitleFileObject(AssFile *subs)
+	{
+	}
+
+	void LuaFeature::CreateIntegerArray(std::vector<int> &ints)
+	{
+		// create an array-style table with an integer vector in it
+		// leave the new table on top of the stack
+		lua_newtable(L);
+		for (int i = 0; i != ints.size(); ++i) {
+			lua_pushinteger(L, ints[i]);
+			lua_rawseti(L, -2, i+1);
+		}
 	}
 
 
@@ -235,6 +263,7 @@ namespace Automation4 {
 	LuaFeatureMacro::LuaFeatureMacro(wxString &_name, wxString &_description, MacroMenu _menu, lua_State *_L)
 		: LuaFeature(_L, SCRIPTFEATURE_MACRO, _name)
 		, FeatureMacro(_name, _description, _menu)
+		, Feature(SCRIPTFEATURE_MACRO, _name)
 	{
 		// new table for containing the functions for this feature
 		lua_newtable(L);
@@ -245,20 +274,72 @@ namespace Automation4 {
 		// and validation function
 		// TODO: check for existing and being a function
 		lua_pushvalue(L, 5);
-		lua_rawseti(L, -2, 1);
+		no_validate = !lua_isfunction(L, -1);
+		lua_rawseti(L, -2, 2);
 		// make the feature known
 		RegisterFeature();
 		// and remove the feature function table again
 		lua_pop(L, 1);
 	}
 
-	bool LuaFeatureMacro::Validate(/* FIXME */)
+	bool LuaFeatureMacro::Validate(AssFile *subs, std::vector<int> &selected, int active)
 	{
-		return true;
+		if (no_validate)
+			return true;
+
+		wxLogDebug(_T("Validate start"));
+
+		int startstack = lua_gettop(L);
+
+		GetFeatureFunction(2);
+		wxLogDebug(_T("Got function"));
+
+		// prepare function call
+		lua_pushnil(L); // subtitles
+		lua_newtable(L); // selected lines
+		lua_pushinteger(L, active); // active line
+		wxLogDebug(_T("Prepared parameters"));
+		// do call
+		LuaThreadedCall call(L, 3, 1);
+		wxLogDebug(_T("Waiting for call to finish"));
+		wxThread::ExitCode code = call.Wait();
+		wxLogDebug(_T("Exit code was %d"), (int)code);
+		wxLogDebug(_T("Getting result"));
+		// get result
+		bool result = lua_toboolean(L, -1);
+
+		// clean up stack
+		lua_pop(L, 1);
+		// stack should be empty now
+		assert(lua_gettop(L) == startstack);
+		wxLogDebug(_T("Finished validation"));
+
+		return result;
 	}
 
-	void LuaFeatureMacro::Process(/* FIXME */)
+	void LuaFeatureMacro::Process(AssFile *subs, std::vector<int> &selected, int active)
 	{
+		int startstack = lua_gettop(L);
+
+		wxLogDebug(_T("Process start"));
+
+		GetFeatureFunction(1);
+		wxLogDebug(_T("Got function"));
+
+		// prepare function call
+		lua_pushnil(L); // subtitles
+		lua_newtable(L); // selected lines
+		lua_pushinteger(L, -1); // active line
+		wxLogDebug(_T("Prepared parameters"));
+		// do call
+		LuaThreadedCall call(L, 3, 0);
+		wxLogDebug(_T("Waiting for call to finish"));
+		wxThread::ExitCode code = call.Wait();
+		wxLogDebug(_T("Exit code was %d"), (int)code);
+
+		// stack should be empty now
+		assert(lua_gettop(L) == startstack);
+		wxLogDebug(_T("Finished processing"));
 	}
 
 

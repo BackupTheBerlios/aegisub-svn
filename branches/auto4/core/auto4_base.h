@@ -45,6 +45,8 @@
 #include "ass_export_filter.h"
 #include "subtitle_format.h"
 
+class AssFile;
+
 
 DECLARE_EVENT_TYPE(wxEVT_AUTOMATION_SCRIPT_COMPLETED, -1)
 
@@ -88,16 +90,16 @@ namespace Automation4 {
 
 	public:
 		ScriptFeatureClass GetClass() const;
-		const FeatureMacro* AsMacro() const;
-		const FeatureFilter* AsFilter() const;
-		const FeatureSubtitleFormat* AsSubFormat() const;
+		FeatureMacro* AsMacro();
+		FeatureFilter* AsFilter();
+		FeatureSubtitleFormat* AsSubFormat();
 
-		const wxString& GetName() const;
+		virtual const wxString& GetName() const;
 	};
 
 
 	// The Macro feature; adds a menu item that runs script code
-	class FeatureMacro : public Feature {
+	class FeatureMacro : public virtual Feature {
 	private:
 		wxString description;
 		MacroMenu menu;
@@ -109,13 +111,13 @@ namespace Automation4 {
 		const wxString& GetDescription() const;
 		MacroMenu GetMenu() const;
 
-		virtual bool Validate(/* TODO: this needs arguments */) = 0;
-		virtual void Process(/* TODO: this needs arguments */) = 0;
+		virtual bool Validate(AssFile *subs, std::vector<int> &selected, int active) = 0;
+		virtual void Process(AssFile *subs, std::vector<int> &selected, int active) = 0;
 	};
 
 
 	// The Export Filter feature; adds a new export filter
-	class FeatureFilter : public Feature, public AssExportFilter {
+	class FeatureFilter : public virtual Feature, public AssExportFilter {
 	protected:
 		FeatureFilter(wxString &_name, wxString &_description, int _priority);
 
@@ -130,7 +132,7 @@ namespace Automation4 {
 
 
 	// The Subtitle Format feature; adds new subtitle format readers/writers
-	class FeatureSubtitleFormat : public Feature, public SubtitleFormat {
+	class FeatureSubtitleFormat : public virtual Feature, public SubtitleFormat {
 	private:
 		wxString extension;
 
@@ -187,7 +189,7 @@ namespace Automation4 {
 	private:
 		std::vector<Script*> scripts;
 
-		std::vector<const FeatureMacro*> macros[MACROMENU_MAX]; // array of vectors...
+		std::vector<FeatureMacro*> macros[MACROMENU_MAX]; // array of vectors...
 
 	public:
 		ScriptManager();
@@ -197,7 +199,7 @@ namespace Automation4 {
 
 		const std::vector<Script*>& GetScripts() const;
 
-		const std::vector<const FeatureMacro*>& GetMacros(MacroMenu menu);
+		const std::vector<FeatureMacro*>& GetMacros(MacroMenu menu);
 		// No need to have getters for the other kinds of features, I think.
 		// They automatically register themselves in the relevant places.
 	};
