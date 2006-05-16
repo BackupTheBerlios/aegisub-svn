@@ -35,6 +35,7 @@
 
 #include "auto4_lua.h"
 #include "ass_dialogue.h"
+#include "ass_style.h"
 #include "ass_file.h"
 #include <lualib.h>
 #include <lauxlib.h>
@@ -54,6 +55,165 @@ namespace Automation4 {
 
 	void LuaAssFile::AssEntryToLua(AssEntry *e)
 	{
+		lua_newtable(L);
+
+		wxString section(e->group);
+		lua_pushstring(L, section.mb_str(wxConvUTF8));
+		lua_setfield(L, -2, "section");
+
+		wxString raw(e->GetEntryData());
+		lua_pushstring(L, raw.mb_str(wxConvUTF8));
+		lua_setfield(L, -2, "raw");
+
+		if (raw.Trim().IsEmpty()) {
+			lua_pushstring(L, "clear");
+
+		} else if (raw[0] == _T(';')) {
+			// "text" field, same as "raw" but with semicolon stripped
+			wxString text(raw, 1, raw.size()-1);
+			lua_pushstring(L, text.mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "text");
+
+			lua_pushstring(L, "comment");
+
+		} else if (raw[0] == _T('[')) {
+			lua_pushstring(L, "head");
+
+		} else if (section.Lower() == _T("[script info]")) {
+			// assumed "info" class
+
+			// first "key"
+			wxString key = raw.BeforeFirst(_T(':'));
+			lua_pushstring(L, key.mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "key");
+
+			// then "value"
+			wxString value = raw.AfterFirst(_T(':'));
+			lua_pushstring(L, value.mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "value");
+
+			lua_pushstring(L, "info");
+
+		} else if (raw.Left(7).Lower() == _T("format:")) {
+
+			// TODO: parse the format line; just use a tokenizer
+
+			lua_pushstring(L, "format");
+
+		} else if (e->GetType() == ENTRY_DIALOGUE) {
+			AssDialogue *dia = e->GetAsDialogue(e);
+
+			lua_pushboolean(L, (int)dia->Comment);
+			lua_setfield(L, -2, "comment");
+
+			lua_pushnumber(L, dia->Layer);
+			lua_setfield(L, -2, "layer");
+
+			lua_pushnumber(L, dia->Start.GetMS());
+			lua_setfield(L, -2, "start_time");
+			lua_pushnumber(L, dia->End.GetMS());
+			lua_setfield(L, -2, "end_time");
+
+			lua_pushstring(L, dia->Style.mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "style");
+			lua_pushstring(L, dia->Actor.mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "actor");
+
+			lua_pushnumber(L, dia->MarginL);
+			lua_setfield(L, -2, "margin_l");
+			lua_pushnumber(L, dia->MarginR);
+			lua_setfield(L, -2, "margin_r");
+			lua_pushnumber(L, dia->MarginV); // duplicating MarginV to margin_t and margin_b here
+			lua_setfield(L, -2, "margin_t");
+			lua_pushnumber(L, dia->MarginV);
+			lua_setfield(L, -2, "margin_b");
+
+			lua_pushstring(L, dia->Effect.mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "effect");
+
+			lua_pushstring(L, ""); // tentative AS5 field
+			lua_setfield(L, -2, "userdata");
+
+			lua_pushstring(L, dia->Text.mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "text");
+
+			lua_pushstring(L, "dialogue");
+
+		} else if (e->GetType() == ENTRY_STYLE) {
+			AssStyle *sty = e->GetAsStyle(e);
+
+			lua_pushstring(L, sty->name.mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "name");
+
+			lua_pushstring(L, sty->font.mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "fontname");
+			lua_pushnumber(L, sty->fontsize);
+			lua_setfield(L, -2, "fontsize");
+
+			lua_pushstring(L, sty->primary.GetASSFormatted(true).mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "color1");
+			lua_pushstring(L, sty->secondary.GetASSFormatted(true).mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "color2");
+			lua_pushstring(L, sty->outline.GetASSFormatted(true).mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "color3");
+			lua_pushstring(L, sty->shadow.GetASSFormatted(true).mb_str(wxConvUTF8));
+			lua_setfield(L, -2, "color4");
+
+			lua_pushboolean(L, (int)sty->bold);
+			lua_setfield(L, -2, "bold");
+			lua_pushboolean(L, (int)sty->italic);
+			lua_setfield(L, -2, "italic");
+			lua_pushboolean(L, (int)sty->underline);
+			lua_setfield(L, -2, "underline");
+			lua_pushboolean(L, (int)sty->strikeout);
+			lua_setfield(L, -2, "strikeout");
+
+			lua_pushnumber(L, sty->scalex);
+			lua_setfield(L, -2, "scale_x");
+			lua_pushnumber(L, sty->scaley);
+			lua_setfield(L, -2, "scale_y");
+
+			lua_pushnumber(L, sty->spacing);
+			lua_setfield(L, -2, "spacing");
+
+			lua_pushnumber(L, sty->angle);
+			lua_setfield(L, -2, "angle");
+
+			lua_pushnumber(L, sty->borderstyle);
+			lua_setfield(L, -2, "borderstyle");
+			lua_pushnumber(L, sty->outline_w);
+			lua_setfield(L, -2, "outline");
+			lua_pushnumber(L, sty->shadow_w);
+			lua_setfield(L, -2, "shadow");
+
+			lua_pushnumber(L, sty->alignment);
+			lua_setfield(L, -2, "align");
+
+			lua_pushnumber(L, sty->MarginL);
+			lua_setfield(L, -2, "margin_l");
+			lua_pushnumber(L, sty->MarginR);
+			lua_setfield(L, -2, "margin_r");
+			lua_pushnumber(L, sty->MarginV); // duplicating MarginV to margin_t and margin_b here
+			lua_setfield(L, -2, "margin_t");
+			lua_pushnumber(L, sty->MarginV);
+			lua_setfield(L, -2, "margin_b");
+
+			lua_pushnumber(L, sty->encoding);
+			lua_setfield(L, -2, "encoding");
+
+			lua_pushnumber(L, 2); // From STS.h: "0: window, 1: video, 2: undefined (~window)"
+			lua_setfield(L, -2, "relative_to");
+
+			lua_pushboolean(L, false); // vertical writing, tentative AS5 field
+			lua_setfield(L, -2, "vertical");
+
+			lua_pushstring(L, "style");
+
+		} else {
+			lua_pushstring(L, "unknown");
+		}
+		// store class of item; last thing done for each class specific code must be pushing the class name
+		lua_setfield(L, -2, "class");
 	}
 
 	AssEntry *LuaAssFile::LuaToAssEntry()
@@ -309,9 +469,9 @@ namespace Automation4 {
 
 			// load user script
 			if (luaL_loadfile(L, GetFilename().mb_str(wxConvUTF8))) {
-				wxString err(lua_tostring(L, -1), wxConvUTF8);
-				err.Prepend(_T("An error occurred loading the Lua script file \"") + GetFilename() + _T("\":\n\n"));
-				throw err.c_str();
+				wxString *err = new wxString(lua_tostring(L, -1), wxConvUTF8);
+				err->Prepend(_T("An error occurred loading the Lua script file \"") + GetFilename() + _T("\":\n\n"));
+				throw err->c_str();
 			}
 			// and execute it
 			// this is where features are registered
