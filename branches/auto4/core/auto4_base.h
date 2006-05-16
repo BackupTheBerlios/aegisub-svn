@@ -178,7 +178,7 @@ namespace Automation4 {
 		const wxString& GetVersion() const;
 		bool GetLoadedState() const;
 
-		const std::vector<Feature*>& GetFeatures() const;
+		std::vector<Feature*>& GetFeatures();
 	};
 
 

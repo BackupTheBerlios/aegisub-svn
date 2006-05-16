@@ -234,6 +234,26 @@ Note that the array-style accessors are most likely faster for any case only
 involving one line at a time, while the function syntax versions are probably
 faster if operating on multiple lines at a time.
 
+
+Effeciency concerns
+
+Internally in Aegisub the subtitles are stored in a linked list, meaning
+random access runs in O(n) time rather than O(1), as the interface presented
+here could make it seem like.
+
+The implementation of the Subtitle File object does some caching, so access to
+items close to the last used index will be faster than to items further from.
+
+For this reason, try to avoid totally random access to the subtitle data, but
+try to make your algorithms work in as linear passes as possible.
+
+The cache described here currently only covers the single last accessed item,
+but this might later be extended to two or more, to better support algorithms
+working from multiple points.
+
+However, because of this linked-list implementation, random inserts can still
+be made reasonably fast, as can both appends and prepends.
+
 ---
 
 Parsing tag data

@@ -46,6 +46,34 @@
 
 namespace Automation4 {
 
+	class LuaAssFile {
+	private:
+		AssFile *ass;
+		lua_State *L;
+
+		// keep a cursor of last accessed item to avoid walking over the entire file on every access
+		std::list<AssEntry*>::iterator last_entry_ptr;
+		int last_entry_id;
+
+		void AssEntryToLua(AssEntry *e); // makes a Lua representation of AssEntry and places on the top of the stack
+		AssEntry *LuaToAssEntry(); // assumes a Lua representation of AssEntry on the top of the stack, and creates an AssEntry object of it
+
+		static int ObjectIndexRead(lua_State *L);
+		static int ObjectIndexWrite(lua_State *L);
+		static int ObjectGetLen(lua_State *L);
+		static int ObjectDelete(lua_State *L);
+		static int ObjectDeleteRange(lua_State *L);
+		static int ObjectAppend(lua_State *L);
+		static int ObjectInsert(lua_State *L);
+		static int ObjectGarbageCollect(lua_State *L);
+
+		static LuaAssFile *GetObjPointer(lua_State *L, int idx);
+
+		~LuaAssFile();
+	public:
+		LuaAssFile(lua_State *_L, AssFile *_ass);
+	};
+
 	class LuaFeature : public virtual Feature {
 	protected:
 		lua_State *L;
@@ -56,7 +84,6 @@ namespace Automation4 {
 		void RegisterFeature();
 
 		void GetFeatureFunction(int functionid);
-		void CreateSubtitleFileObject(AssFile *subs);
 		void CreateIntegerArray(std::vector<int> &ints);
 	};
 

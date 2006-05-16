@@ -209,7 +209,7 @@ void FrameMain::OnMenuOpen (wxMenuEvent &event) {
 
 	// Start by cleaning up in macro menu items
 	for (int i = 0; i < activeMacroItems.size(); i++) {
-		wxMenu *p;
+		wxMenu *p = 0;
 		wxMenuItem *it = MenuBar->FindItem(Menu_Automation_Macro + i, &p);
 		if (it)
 			p->Delete(it);
@@ -375,6 +375,7 @@ void FrameMain::AddMacroMenuItems(wxMenu *menu, const std::vector<Automation4::F
 		wxMenuItem * m = menu->Append(Menu_Automation_Macro + id, (*i)->GetName(), (*i)->GetDescription());
 		m->Enable((*i)->Validate(SubsBox->ass, SubsBox->GetAbsoluteSelection(), SubsBox->GetFirstSelRow()));
 		activeMacroItems.push_back(*i);
+		id++;
 	}
 }
 

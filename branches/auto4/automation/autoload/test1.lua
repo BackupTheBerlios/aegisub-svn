@@ -12,12 +12,14 @@ function macro_test1(subtitles, selected_lines, active_line)
 	showmessage("Hello Automation 4 World!")
 end
 
-function longloop()
-	local s = ""
-	for i = 1, 10000 do
-		s = s .. i
-	end
-	return s
+function macro_test2(subtitles, selected_lines, active_line)
+	showmessage(subtitles.n .. " and " .. #subtitles .. " should be the same value")
+end
+
+function longloop(subtitles, selected_lines, active_line)
+	return #selected_lines > 1
 end
 
 aegisub.register_macro("Hello", "Shows a message", "tools", macro_test1, longloop)
+
+aegisub.register_macro("File line count", "Count the number of lines in the ASS file", "tools", macro_test2, nil)

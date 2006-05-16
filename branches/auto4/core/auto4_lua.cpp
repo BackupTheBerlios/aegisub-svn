@@ -34,6 +34,8 @@
 //
 
 #include "auto4_lua.h"
+#include "ass_dialogue.h"
+#include "ass_file.h"
 #include <lualib.h>
 #include <lauxlib.h>
 #include <wx/msgdlg.h>
@@ -47,6 +49,205 @@ namespace Automation4 {
 		wxMutexGuiLocker gui;
 		wxMessageBox(msg);
 		return 0;
+	}
+
+
+	void LuaAssFile::AssEntryToLua(AssEntry *e)
+	{
+	}
+
+	AssEntry *LuaAssFile::LuaToAssEntry()
+	{
+		AssEntry *result = new AssDialogue();
+		return result;
+	}
+
+	int LuaAssFile::ObjectIndexRead(lua_State *L)
+	{
+		LuaAssFile *laf = GetObjPointer(L, 1);
+
+		switch (lua_type(L, 2)) {
+
+			case LUA_TNUMBER:
+				{
+					// read an indexed AssEntry
+
+					// get requested index
+					int reqid = lua_tointeger(L, 2);
+					if (reqid <= 0 || reqid > laf->ass->Line.size()) {
+						lua_pushfstring(L, "Requested out-of-range line from subtitle file: %d", reqid);
+						lua_error(L);
+						return 0;
+					}
+
+					// get the matching AssEntry, using cache
+					reqid--; // convert from 1-base indexing to 0-base indexing
+					std::list<AssEntry*>::iterator e;
+					if (reqid < laf->last_entry_id/2) {
+						// fastest to search from start
+						e = laf->ass->Line.begin();
+						laf->last_entry_id = reqid;
+						while (reqid-- > 0) e++;
+						laf->last_entry_ptr = e;
+						laf->AssEntryToLua(*e);
+						return 1;
+
+					} else if (laf->last_entry_id + reqid > laf->last_entry_id + (laf->ass->Line.size() - laf->last_entry_id)/2) {
+						// fastest to search from end
+						int i = laf->ass->Line.size();
+						e = laf->ass->Line.end();
+						laf->last_entry_id = reqid;
+						while (i-- > reqid) e--;
+						laf->last_entry_ptr = e;
+						laf->AssEntryToLua(*e);
+						return 1;
+
+					} else if (laf->last_entry_id > reqid) {
+						// search backwards from last_entry_id
+						e = laf->last_entry_ptr;
+						while (reqid < laf->last_entry_id) e--, laf->last_entry_id--;
+						laf->last_entry_ptr = e;
+						laf->AssEntryToLua(*e);
+						return 1;
+						
+					} else {
+						// search forwards from last_entry_id
+						e = laf->last_entry_ptr;
+						// reqid and last_entry_id might be equal here, make sure the loop will still work
+						while (reqid > laf->last_entry_id) e++, laf->last_entry_id++;
+						laf->last_entry_ptr = e;
+						laf->AssEntryToLua(*e);
+						return 1;
+
+					}
+				}
+
+			case LUA_TSTRING:
+				{
+					// either return n or a function doing further stuff
+					const char *idx = lua_tostring(L, 2);
+
+					if (strcmp(idx, "n") == 0) {
+						// get number of items
+						lua_pushnumber(L, laf->ass->Line.size());
+						return 1;
+
+					} else if (strcmp(idx, "delete") == 0) {
+						// make a "delete" function
+						lua_pushvalue(L, 1);
+						lua_pushcclosure(L, ObjectDelete, 1);
+						return 1;
+
+					} else if (strcmp(idx, "deleterange") == 0) {
+						// make a "deleterange" function
+						lua_pushvalue(L, 1);
+						lua_pushcclosure(L, ObjectDeleteRange, 1);
+						return 1;
+
+					} else if (strcmp(idx, "insert") == 0) {
+						// make an "insert" function
+						lua_pushvalue(L, 1);
+						lua_pushcclosure(L, ObjectInsert, 1);
+						return 1;
+
+					} else if (strcmp(idx, "append") == 0) {
+						// make an "append" function
+						lua_pushvalue(L, 1);
+						lua_pushcclosure(L, ObjectAppend, 1);
+						return 1;
+
+					} else {
+						// idiot
+						lua_pushfstring(L, "Invalid indexing in Subtitle File object: '%s'", idx);
+						lua_error(L);
+						// should never return
+					}
+					assert(false);
+				}
+
+			default:
+				{
+					// crap, user is stupid!
+					lua_pushfstring(L, "Attempt to index a Subtitle File object with value of type '%s'.", lua_typename(L, lua_type(L, 2)));
+					lua_error(L);
+				}
+		}
+
+		assert(false);
+	}
+
+	int LuaAssFile::ObjectIndexWrite(lua_State *L)
+	{
+		return 0;
+	}
+
+	int LuaAssFile::ObjectGetLen(lua_State *L)
+	{
+		LuaAssFile *laf = GetObjPointer(L, 1);
+		lua_pushnumber(L, laf->ass->Line.size());
+		return 1;
+	}
+
+	int LuaAssFile::ObjectDelete(lua_State *L)
+	{
+		return 0;
+	}
+
+	int LuaAssFile::ObjectDeleteRange(lua_State *L)
+	{
+		return 0;
+	}
+
+	int LuaAssFile::ObjectAppend(lua_State *L)
+	{
+		return 0;
+	}
+
+	int LuaAssFile::ObjectInsert(lua_State *L)
+	{
+		return 0;
+	}
+
+	int LuaAssFile::ObjectGarbageCollect(lua_State *L)
+	{
+		LuaAssFile *laf = GetObjPointer(L, 1);
+		delete laf;
+		return 0;
+	}
+
+	LuaAssFile *LuaAssFile::GetObjPointer(lua_State *L, int idx)
+	{
+		void *ud = lua_touserdata(L, idx);
+		return *((LuaAssFile**)ud);
+	}
+
+	LuaAssFile::~LuaAssFile()
+	{
+	}
+
+	LuaAssFile::LuaAssFile(lua_State *_L, AssFile *_ass)
+		: ass(_ass)
+		, L(_L)
+	{
+		// prepare cursor
+		last_entry_ptr = ass->Line.begin();
+		last_entry_id = 0;
+
+		// prepare userdata object
+		void *ud = lua_newuserdata(L, sizeof(LuaAssFile*));
+		*((LuaAssFile**)ud) = this;
+
+		// make the metatable
+		lua_newtable(L);
+		lua_pushcfunction(L, ObjectIndexRead);
+		lua_setfield(L, -2, "__index");
+		lua_pushcfunction(L, ObjectIndexWrite);
+		lua_setfield(L, -2, "__newindex");
+		lua_pushcfunction(L, ObjectGetLen);
+		lua_setfield(L, -2, "__len");
+		lua_pushcfunction(L, ObjectGarbageCollect);
+		lua_setfield(L, -2, "__gc");
+		lua_setmetatable(L, -2);
 	}
 
 
@@ -178,7 +379,9 @@ namespace Automation4 {
 
 	wxThread::ExitCode LuaThreadedCall::Entry()
 	{
-		return (wxThread::ExitCode)lua_pcall(L, nargs, nresults, 0);
+		int result = lua_pcall(L, nargs, nresults, 0);
+		lua_gc(L, LUA_GCCOLLECT, 0);
+		return (wxThread::ExitCode)result;
 	}
 
 
@@ -219,10 +422,6 @@ namespace Automation4 {
 		lua_rawgeti(L, -1, functionid);
 		lua_remove(L, -2);
 		lua_remove(L, -2);
-	}
-
-	void LuaFeature::CreateSubtitleFileObject(AssFile *subs)
-	{
 	}
 
 	void LuaFeature::CreateIntegerArray(std::vector<int> &ints)
@@ -295,9 +494,9 @@ namespace Automation4 {
 		wxLogDebug(_T("Got function"));
 
 		// prepare function call
-		lua_pushnil(L); // subtitles
-		lua_newtable(L); // selected lines
-		lua_pushinteger(L, active); // active line
+		LuaAssFile *subsobj = new LuaAssFile(L, subs); // subs object
+		CreateIntegerArray(selected); // selected items
+		lua_pushinteger(L, -1); // active line
 		wxLogDebug(_T("Prepared parameters"));
 		// do call
 		LuaThreadedCall call(L, 3, 1);
@@ -327,8 +526,8 @@ namespace Automation4 {
 		wxLogDebug(_T("Got function"));
 
 		// prepare function call
-		lua_pushnil(L); // subtitles
-		lua_newtable(L); // selected lines
+		LuaAssFile *subsobj = new LuaAssFile(L, subs); // subs object
+		CreateIntegerArray(selected); // selected items
 		lua_pushinteger(L, -1); // active line
 		wxLogDebug(_T("Prepared parameters"));
 		// do call
@@ -353,6 +552,8 @@ namespace Automation4 {
 
 		virtual Script* Produce(const wxString &filename) const
 		{
+			// *FIXME* temporary measure
+			return new LuaScript(filename);
 			// Check if the file can be parsed as a Lua script;
 			// create a temporary interpreter for that and attempt to load
 			// but NOT execute the script

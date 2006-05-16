@@ -179,7 +179,7 @@ namespace Automation4 {
 		return loaded;
 	}
 
-	const std::vector<Feature*>& Script::GetFeatures() const
+	std::vector<Feature*>& Script::GetFeatures()
 	{
 		return features;
 	}
@@ -224,10 +224,9 @@ namespace Automation4 {
 	{
 		macros[menu].clear();
 		for (std::vector<Script*>::iterator i = scripts.begin(); i != scripts.end(); ++i) {
-			const std::vector<Feature*> &sfs = (*i)->GetFeatures();
-			for (std::vector<Feature*>::const_iterator j = sfs.begin(); j != sfs.end(); ++j) {
-				FeatureMacro *m = (*j)->AsMacro();
-				//const FeatureMacro *m = dynamic_cast<const FeatureMacro*>(*j);
+			std::vector<Feature*> &sfs = (*i)->GetFeatures();
+			for (std::vector<Feature*>::iterator j = sfs.begin(); j != sfs.end(); ++j) {
+				FeatureMacro *m = dynamic_cast<FeatureMacro*>(*j);
 				if (!m) continue;
 				if (menu == MACROMENU_ALL || m->GetMenu() == menu)
 					macros[menu].push_back(m);
