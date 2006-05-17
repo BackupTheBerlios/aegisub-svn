@@ -969,7 +969,7 @@ namespace Automation4 {
 		// leave the new table on top of the stack
 		lua_newtable(L);
 		for (int i = 0; i != ints.size(); ++i) {
-			lua_pushinteger(L, ints[i]);
+			lua_pushinteger(L, ints[i]+1);
 			lua_rawseti(L, -2, i+1);
 		}
 	}

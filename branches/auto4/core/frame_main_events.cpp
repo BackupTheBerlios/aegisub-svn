@@ -1282,9 +1282,6 @@ void FrameMain::OnAutomationMacro(wxCommandEvent &event) {
 	AssFile *oldtop = AssFile::top;
 	activeMacroItems[event.GetId()-Menu_Automation_Macro]->Process(SubsBox->ass, SubsBox->GetAbsoluteSelection(), SubsBox->GetFirstSelRow());
 	// check if modifications were made and put on undo stack
-	if (oldtop != AssFile::top) {
-		// if so, update the display
-		SubsBox->LoadFromAss(AssFile::top, true, true);
-	}
+	SubsBox->LoadFromAss(AssFile::top, true, true);
 }
 

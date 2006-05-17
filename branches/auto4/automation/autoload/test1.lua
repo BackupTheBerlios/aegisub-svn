@@ -14,7 +14,7 @@ end
 
 function macro_test2(subtitles, selected_lines, active_line)
 	showmessage(subtitles.n .. " and " .. #subtitles .. " should be the same value")
-	showmessage(subtitles[1].class)
+	showmessage(subtitles[selected_lines[1]].raw)
 end
 
 function dumper(subtitles, selected_lines, active_line)

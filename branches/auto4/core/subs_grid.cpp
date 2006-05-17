@@ -646,9 +646,15 @@ void SubtitlesGrid::LoadFromAss (AssFile *_ass,bool keepSelection,bool dontModif
 	}
 
 	// Commit
-	if (!AssFile::Popping) {
-		if (dontModify) AssFile::StackPush();
-		else ass->FlagAsModified(_T("Unknown")); // *FIXME*
+	if (!AssFile::Popping && !(keepSelection && dontModify)) {
+		// FIXME! ?
+		// this is hackish, but works for now!
+		// usually, when dontModify is set, it's because a new (blank or from disk) file was loaded, and in that case keepSelection makes no sense and must be false
+		// when dontModify is false, it was some modification that didn't call AssFile::FlagAsmodified itself
+		// but if keepSelection AND dontModify are set, the modification must be of unknown nature, but it did flag the file as modified
+		// therefore, only do any pushing/flagging if needed according to the above
+		if (dontModify && !keepSelection) AssFile::StackPush();
+		else ass->FlagAsModified(_T("Unknown")); // *FIXME* action description
 	}
 	CommitChanges();
 
