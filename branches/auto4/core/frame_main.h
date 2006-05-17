@@ -219,7 +219,7 @@ private:
 	void SetDisplayMode(int mode);
 
 	void AppendBitmapMenuItem (wxMenu* parentMenu,int id,wxString text,wxString help,wxBitmap bmp);
-	wxMenuItem *RebuildMenuItem(wxMenu *menu,int id,wxBitmap bmp1,wxBitmap bmp2,bool state);
+	wxMenuItem *RebuildMenuItem(wxMenu *menu,int id,wxBitmap bmp1,wxBitmap bmp2,bool state,const wxString &text = _T(""));
 	void MenuItemEnable(int id,bool state,wxBitmap &bmp1,wxBitmap &bmp2);
 	void SynchronizeProject(bool FromSubs=false);
 

@@ -357,7 +357,7 @@ void VideoDisplay::OnMouseEvent(wxMouseEvent& event) {
 	if (event.LeftDClick()) {
 		grid->editBox->SetOverride(_T("\\pos"),wxString::Format(_T("(%i,%i)"),vx,vy),0);
 		grid->editBox->CommitText();
-		grid->ass->FlagAsModified();
+		grid->ass->FlagAsModified(_("Set Position"));
 		grid->CommitChanges();
 	}
 

@@ -260,7 +260,7 @@ void DialogShiftTimes::OnOK(wxCommandEvent &event) {
 	Options.Save();
 
 	// End dialog
-	grid->ass->FlagAsModified();
+	grid->ass->FlagAsModified(_("Shift Times"));
 	grid->CommitChanges();
 	grid->UpdateMaps();
 	grid->editBox->Update();

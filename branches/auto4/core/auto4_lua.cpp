@@ -41,14 +41,52 @@
 #include <lauxlib.h>
 #include <wx/msgdlg.h>
 #include <assert.h>
+#include <algorithm>
 
 namespace Automation4 {
+
+	class LuaStackcheck {
+	private:
+		lua_State *L;
+		int startstack;
+	public:
+		void check(int additional)
+		{
+			int top = lua_gettop(L);
+			if (top - additional != startstack) {
+				wxLogDebug(_T("Lua stack size mismatch. Dumping..."));
+				for (int i = top; i > 0; i--) {
+					wxString type(lua_typename(L, lua_type(L, i)), wxConvUTF8);
+					if (lua_isstring(L, i)) {
+						wxLogDebug(type + _T(": ") + wxString(lua_tostring(L, i), wxConvUTF8));
+					} else {
+						wxLogDebug(type);
+					}
+				}
+				assert(false);
+			}
+		}
+		LuaStackcheck(lua_State *_L) : L(_L) { startstack = lua_gettop(L); }
+		~LuaStackcheck() { check(0); }
+	};
 
 	int lua_callable_showmessage(lua_State *L)
 	{
 		wxString msg(lua_tostring(L, 1), wxConvUTF8);
 		wxMutexGuiLocker gui;
 		wxMessageBox(msg);
+		lua_pop(L, 1);
+		return 0;
+	}
+
+	int lua_callable_set_undo_point(lua_State *L)
+	{
+		wxString description;
+		if (lua_isstring(L, 1)) {
+			description = wxString(lua_tostring(L, 1), wxConvUTF8);
+			lua_pop(L, 1);
+		}
+		AssFile::FlagAsModified(description);
 		return 0;
 	}
 
@@ -218,8 +256,229 @@ namespace Automation4 {
 
 	AssEntry *LuaAssFile::LuaToAssEntry()
 	{
-		AssEntry *result = new AssDialogue();
+		// assume an assentry table is on the top of the stack
+		// convert it to a real AssEntry object, and pop the table from the stack
+
+		if (!lua_istable(L, -1)) {
+			lua_pushstring(L, "Can't convert a non-table value to AssEntry");
+			lua_error(L);
+			return 0;
+		}
+
+		lua_getfield(L, -1, "class");
+		if (!lua_isstring(L, -1)) {
+			lua_pushstring(L, "Table lacks 'class' field, can't convert to AssEntry");
+			lua_error(L);
+			return 0;
+		}
+		wxString lclass(lua_tostring(L, -1), wxConvUTF8);
+		lclass.MakeLower();
+		lua_pop(L, 1);
+
+		AssEntry *result;
+
+#define GETSTRING(varname, fieldname, lineclass)		\
+	lua_getfield(L, -1, fieldname);						\
+	if (!lua_isstring(L, -1)) {							\
+		lua_pushstring(L, "Invalid string '" fieldname "' field in '" lineclass "' class subtitle line"); \
+		lua_error(L);									\
+		return 0;										\
+	}													\
+	wxString varname (lua_tostring(L, -1), wxConvUTF8);	\
+	lua_pop(L, 1);
+#define GETFLOAT(varname, fieldname, lineclass)			\
+	lua_getfield(L, -1, fieldname);						\
+	if (!lua_isnumber(L, -1)) {							\
+		lua_pushstring(L, "Invalid number '" fieldname "' field in '" lineclass "' class subtitle line"); \
+		lua_error(L);									\
+		return 0;										\
+	}													\
+	float varname = lua_tonumber(L, -1);				\
+	lua_pop(L, 1);
+#define GETINT(varname, fieldname, lineclass)			\
+	lua_getfield(L, -1, fieldname);						\
+	if (!lua_isnumber(L, -1)) {							\
+		lua_pushstring(L, "Invalid number '" fieldname "' field in '" lineclass "' class subtitle line"); \
+		lua_error(L);									\
+		return 0;										\
+	}													\
+	int varname = lua_tointeger(L, -1);					\
+	lua_pop(L, 1);
+#define GETBOOL(varname, fieldname, lineclass)			\
+	lua_getfield(L, -1, fieldname);						\
+	if (!lua_isboolean(L, -1)) {						\
+		lua_pushstring(L, "Invalid boolean '" fieldname "' field in '" lineclass "' class subtitle line"); \
+		lua_error(L);									\
+		return 0;										\
+	}													\
+	bool varname = !!lua_toboolean(L, -1);				\
+	lua_pop(L, 1);
+
+		GETSTRING(section, "section", "common")
+
+		if (lclass == _T("clear")) {
+			result = new AssEntry(_T(""));
+			result->group = section;
+
+		} else if (lclass == _T("comment")) {
+			GETSTRING(raw, "text", "comment")
+			raw.Prepend(_T(";"));
+			result = new AssEntry(raw);
+			result->group = section;
+
+		} else if (lclass == _T("head")) {
+			result = new AssEntry(section);
+			result->group = section;
+
+		} else if (lclass == _T("info")) {
+			GETSTRING(key, "key", "info")
+			GETSTRING(value, "value", "info")
+			result = new AssEntry(wxString::Format(_T("%s: %s"), key.c_str(), value.c_str()));
+			result->group = _T("[Script Info]"); // just so it can be read correctly back
+
+		} else if (lclass == _T("format")) {
+			// ohshi- ...
+			// *FIXME* maybe ignore the actual data and just put some default stuff based on section?
+			result = new AssEntry(_T("Format: Auto4,Is,Broken"));
+			result->group = section;
+
+		} else if (lclass == _T("style")) {
+			GETSTRING(name, "name", "style")
+			GETSTRING(fontname, "fontname", "style")
+			GETFLOAT(fontsize, "fontsize", "style")
+			GETSTRING(color1, "color1", "style")
+			GETSTRING(color2, "color2", "style")
+			GETSTRING(color3, "color3", "style")
+			GETSTRING(color4, "color4", "style")
+			GETBOOL(bold, "bold", "style")
+			GETBOOL(italic, "italic", "style")
+			GETBOOL(underline, "underline", "style")
+			GETBOOL(strikeout, "strikeout", "style")
+			GETFLOAT(scale_x, "scale_x", "style")
+			GETFLOAT(scale_y, "scale_y", "style")
+			GETINT(spacing, "spacing", "style")
+			GETFLOAT(angle, "angle", "style")
+			GETINT(borderstyle, "borderstyle", "style")
+			GETFLOAT(outline, "outline", "style")
+			GETFLOAT(shadow, "shadow", "style")
+			GETINT(align, "align", "style")
+			GETINT(margin_l, "margin_l", "style")
+			GETINT(margin_r, "margin_r", "style")
+			GETINT(margin_t, "margin_t", "style")
+			//GETINT(margin_b, "margin_b", "style") // skipping for now, since it's not used anyway
+			GETINT(encoding, "encoding", "style")
+			// leaving out relative_to and vertical
+
+			AssStyle *sty = new AssStyle();
+			sty->name = name;
+			sty->font = fontname;
+			sty->fontsize = fontsize;
+			sty->primary.ParseASS(color1);
+			sty->secondary.ParseASS(color2);
+			sty->outline.ParseASS(color3);
+			sty->shadow.ParseASS(color4);
+			sty->bold = bold;
+			sty->italic = italic;
+			sty->underline = underline;
+			sty->strikeout = strikeout;
+			sty->scalex = scale_x;
+			sty->scaley = scale_y;
+			sty->spacing = spacing;
+			sty->angle = angle;
+			sty->borderstyle = borderstyle;
+			sty->outline_w = outline;
+			sty->shadow_w = shadow;
+			sty->alignment = align;
+			sty->MarginL = margin_l;
+			sty->MarginR = margin_r;
+			sty->MarginV = margin_t;
+			sty->encoding = encoding;
+			sty->UpdateData();
+
+			result = sty;
+
+		} else if (lclass == _T("stylex")) {
+			lua_pushstring(L, "Found line with class 'stylex' which is not supported. Wait until AS5 is a reality.");
+			lua_error(L);
+			return 0;
+
+		} else if (lclass == _T("dialogue")) {
+			GETBOOL(comment, "comment", "dialogue")
+			GETINT(layer, "layer", "dialogue")
+			GETINT(start_time, "start_time", "dialogue")
+			GETINT(end_time, "end_time", "dialogue")
+			GETSTRING(style, "style", "dialogue")
+			GETSTRING(actor, "actor", "dialogue")
+			GETINT(margin_l, "margin_l", "dialogue")
+			GETINT(margin_r, "margin_r", "dialogue")
+			GETINT(margin_t, "margin_t", "dialogue")
+			//GETINT(margin_b, "margin_b", "dialogue") // skipping for now, since it's not used anyway
+			GETSTRING(effect, "effect", "dialogue")
+			//GETSTRING(userdata, "userdata", "dialogue")
+			GETSTRING(text, "text", "dialogue")
+
+			AssDialogue *dia = new AssDialogue();
+			dia->Comment = comment;
+			dia->Layer = layer;
+			dia->Start.SetMS(start_time);
+			dia->End.SetMS(end_time);
+			dia->Style = style;
+			dia->Actor = actor;
+			dia->MarginL = margin_l;
+			dia->MarginR = margin_r;
+			dia->MarginV = margin_t;
+			dia->Effect = effect;
+			dia->Text = text;
+			dia->UpdateData();
+
+			result = dia;
+
+		} else {
+			lua_pushfstring(L, "Found line with unknown class: %s", lclass.mb_str(wxConvUTF8));
+			lua_error(L);
+			return 0;
+		}
+
+#undef GETSTRING
+#undef GETFLOAT
+#undef GETINT
+#undef GETBOOL
+
+		lua_pop(L, 1);
 		return result;
+	}
+
+	void LuaAssFile::GetAssEntry(int n)
+	{
+		entryIter e;
+		if (n < last_entry_id/2) {
+			// fastest to search from start
+			e = ass->Line.begin();
+			last_entry_id = n;
+			while (n-- > 0) e++;
+			last_entry_ptr = e;
+
+		} else if (last_entry_id + n > last_entry_id + (ass->Line.size() - last_entry_id)/2) {
+			// fastest to search from end
+			int i = ass->Line.size();
+			e = ass->Line.end();
+			last_entry_id = n;
+			while (i-- > n) e--;
+			last_entry_ptr = e;
+
+		} else if (last_entry_id > n) {
+			// search backwards from last_entry_id
+			e = last_entry_ptr;
+			while (n < last_entry_id) e--, last_entry_id--;
+			last_entry_ptr = e;
+			
+		} else {
+			// search forwards from last_entry_id
+			e = last_entry_ptr;
+			// reqid and last_entry_id might be equal here, make sure the loop will still work
+			while (n > last_entry_id) e++, last_entry_id++;
+			last_entry_ptr = e;
+		}
 	}
 
 	int LuaAssFile::ObjectIndexRead(lua_State *L)
@@ -240,46 +499,9 @@ namespace Automation4 {
 						return 0;
 					}
 
-					// get the matching AssEntry, using cache
-					reqid--; // convert from 1-base indexing to 0-base indexing
-					std::list<AssEntry*>::iterator e;
-					if (reqid < laf->last_entry_id/2) {
-						// fastest to search from start
-						e = laf->ass->Line.begin();
-						laf->last_entry_id = reqid;
-						while (reqid-- > 0) e++;
-						laf->last_entry_ptr = e;
-						laf->AssEntryToLua(*e);
-						return 1;
-
-					} else if (laf->last_entry_id + reqid > laf->last_entry_id + (laf->ass->Line.size() - laf->last_entry_id)/2) {
-						// fastest to search from end
-						int i = laf->ass->Line.size();
-						e = laf->ass->Line.end();
-						laf->last_entry_id = reqid;
-						while (i-- > reqid) e--;
-						laf->last_entry_ptr = e;
-						laf->AssEntryToLua(*e);
-						return 1;
-
-					} else if (laf->last_entry_id > reqid) {
-						// search backwards from last_entry_id
-						e = laf->last_entry_ptr;
-						while (reqid < laf->last_entry_id) e--, laf->last_entry_id--;
-						laf->last_entry_ptr = e;
-						laf->AssEntryToLua(*e);
-						return 1;
-						
-					} else {
-						// search forwards from last_entry_id
-						e = laf->last_entry_ptr;
-						// reqid and last_entry_id might be equal here, make sure the loop will still work
-						while (reqid > laf->last_entry_id) e++, laf->last_entry_id++;
-						laf->last_entry_ptr = e;
-						laf->AssEntryToLua(*e);
-						return 1;
-
-					}
+					laf->GetAssEntry(reqid-1);
+					laf->AssEntryToLua(*laf->last_entry_ptr);
+					return 1;
 				}
 
 			case LUA_TSTRING:
@@ -338,7 +560,46 @@ namespace Automation4 {
 
 	int LuaAssFile::ObjectIndexWrite(lua_State *L)
 	{
-		return 0;
+		// instead of implementing everything twice, just call the other modification-functions from here
+		// after modifying the stack to match their expectations
+
+		if (!lua_isnumber(L, 2)) {
+			lua_pushstring(L, "Attempt to write to non-numeric index in subtitle index");
+			lua_error(L);
+			return 0;
+		}
+		
+		int n = lua_tointeger(L, 2);
+
+		if (n < 0) {
+			// insert line so new index is n
+			lua_pushinteger(L, -n);
+			lua_replace(L, 2);
+			return ObjectInsert(L);
+
+		} else if (n == 0) {
+			// append line to list
+			lua_remove(L, 2);
+			return ObjectAppend(L);
+
+		} else {
+			// replace line at index n or delete
+			if (!lua_isnil(L, 3)) {
+				// insert
+				LuaAssFile *laf = GetObjPointer(L, 1);
+				AssEntry *e = laf->LuaToAssEntry();
+				laf->GetAssEntry(n-1);
+				delete *laf->last_entry_ptr;
+				*laf->last_entry_ptr = e;
+				return 0;
+
+			} else {
+				// delete
+				lua_settop(L, 2); // make sure there's only two items on stack, laf and id
+				return ObjectDelete(L);
+
+			}
+		}
 	}
 
 	int LuaAssFile::ObjectGetLen(lua_State *L)
@@ -350,21 +611,128 @@ namespace Automation4 {
 
 	int LuaAssFile::ObjectDelete(lua_State *L)
 	{
+		LuaAssFile *laf = GetObjPointer(L, 1);
+
+		// get number of items to delete
+		int itemcount = lua_gettop(L);
+		std::vector<int> ids;
+		ids.reserve(itemcount-1);
+
+		// the the item id's and sort them, so we can delete from last to first,
+		// to preserve original numbering
+		while (itemcount > 1) {
+			if (!lua_isnumber(L, itemcount)) {
+				lua_pushstring(L, "Attempt to delete non-numeric line id from Subtitle Object");
+				lua_error(L);
+				return 0;
+			}
+			int n = lua_tointeger(L, itemcount);
+			if (n > laf->ass->Line.size() || n < 1) {
+				lua_pushstring(L, "Attempt to delete out of range line id from Subtitle Object");
+				lua_error(L);
+				return 0;
+			}
+			ids.push_back(n-1); // make C-style line ids
+		}
+		std::sort(ids.begin(), ids.end());
+
+		// now delete the id's backwards
+		// start with the last one, to initialise things
+		laf->GetAssEntry(ids.back());
+		// get an iterator to it, and increase last_entry_ptr so it'll still be valid after deletion, and point to the right index
+		entryIter e = laf->last_entry_ptr++;
+		laf->ass->Line.erase(e);
+		int n = laf->last_entry_id;
+		for (int i = ids.size()-2; i >= 0; --i) {
+			int id = ids[i];
+			while (id > n--) laf->last_entry_ptr--;
+			e = laf->last_entry_ptr++;
+			delete *e;
+			laf->ass->Line.erase(e);
+		}
+		laf->last_entry_id = n;
+
 		return 0;
 	}
 
 	int LuaAssFile::ObjectDeleteRange(lua_State *L)
 	{
+		LuaAssFile *laf = GetObjPointer(L, 1);
+
+		if (!lua_isnumber(L, 2) || !lua_isnumber(L, 3)) {
+			lua_pushstring(L, "Non-numeric argument given to deleterange");
+			lua_error(L);
+			return 0;
+		}
+
+		int a = lua_tointeger(L, 2), b = lua_tointeger(L, 3);
+
+		if (a < 1) a = 1;
+		if (b > laf->ass->Line.size()) b = laf->ass->Line.size();
+
+		if (b < a) return 0;
+
+		if (a == b) {
+			laf->GetAssEntry(a-1);
+			entryIter e = laf->last_entry_ptr++;
+			delete *e;
+			laf->ass->Line.erase(e);
+			return 0;
+		}
+
+		entryIter ai, bi;
+		laf->GetAssEntry(a-1);
+		ai = laf->last_entry_ptr;
+		laf->GetAssEntry(b-1);
+		bi = laf->last_entry_ptr;
+		laf->last_entry_ptr++;
+
+		laf->ass->Line.erase(ai, bi);
+
 		return 0;
 	}
 
 	int LuaAssFile::ObjectAppend(lua_State *L)
 	{
+		LuaAssFile *laf = GetObjPointer(L, 1);
+
+		int n = lua_gettop(L);
+
+		if (laf->last_entry_ptr != laf->ass->Line.begin()) {
+			laf->last_entry_ptr--;
+			laf->last_entry_id--;
+		}
+
+		for (int i = 2; i <= n; i++) {
+			lua_pushvalue(L, i);
+			AssEntry *e = laf->LuaToAssEntry();
+			laf->ass->Line.push_back(e);
+		}
+
 		return 0;
 	}
 
 	int LuaAssFile::ObjectInsert(lua_State *L)
 	{
+		LuaAssFile *laf = GetObjPointer(L, 1);
+
+		if (!lua_isnumber(L, 2)) {
+			lua_pushstring(L, "Can't insert at non-numeric index");
+			lua_error(L);
+			return 0;
+		}
+
+		int n = lua_gettop(L);
+
+		laf->GetAssEntry(lua_tonumber(L, 2)-1);
+
+		for (int i = 3; i <= n; i++) {
+			lua_pushvalue(L, i);
+			AssEntry *e = laf->LuaToAssEntry();
+			laf->ass->Line.insert(laf->last_entry_ptr, e);
+			laf->last_entry_id++;
+		}
+
 		return 0;
 	}
 
@@ -372,6 +740,7 @@ namespace Automation4 {
 	{
 		LuaAssFile *laf = GetObjPointer(L, 1);
 		delete laf;
+		wxLogDebug(_T(">>gc<< Garbage collected LuaAssFile"));
 		return 0;
 	}
 
@@ -432,13 +801,16 @@ namespace Automation4 {
 		try {
 			// create lua environment
 			L = lua_open();
+			LuaStackcheck _stackcheck(L);
 
 			// register standard libs
-			luaopen_base(L);
-			//luaopen_package(L);
-			luaopen_string(L);
-			luaopen_table(L);
-			luaopen_math(L);
+			lua_pushcfunction(L, luaopen_base); lua_call(L, 0, 0);
+			lua_pushcfunction(L, luaopen_base); lua_call(L, 0, 0);
+			lua_pushcfunction(L, luaopen_package); lua_call(L, 0, 0);
+			lua_pushcfunction(L, luaopen_string); lua_call(L, 0, 0);
+			lua_pushcfunction(L, luaopen_table); lua_call(L, 0, 0);
+			lua_pushcfunction(L, luaopen_math); lua_call(L, 0, 0);
+			_stackcheck.check(0);
 			// FIXME!
 			// unregister dofile() and loadfile() and provide alternative,
 			// or hack those two functions instead?
@@ -453,19 +825,23 @@ namespace Automation4 {
 			// integer indexed, using same indexes as "features" vector in the base Script class
 			lua_newtable(L);
 			lua_setfield(L, LUA_REGISTRYINDEX, "features");
+			_stackcheck.check(0);
 
 			// for now: a stupid test function
 			lua_pushstring(L, "showmessage");
 			lua_pushcfunction(L, lua_callable_showmessage);
 			lua_settable(L, LUA_GLOBALSINDEX);
+			_stackcheck.check(0);
 
 			// make "aegisub" table
 			lua_pushstring(L, "aegisub");
 			lua_newtable(L);
-			lua_pushstring(L, "register_macro");
 			lua_pushcfunction(L, LuaFeatureMacro::LuaRegister);
-			lua_settable(L, -3);
+			lua_setfield(L, -2, "register_macro");
+			lua_pushcfunction(L, lua_callable_set_undo_point);
+			lua_setfield(L, -2, "set_undo_point");
 			lua_settable(L, LUA_GLOBALSINDEX);
+			_stackcheck.check(0);
 
 			// load user script
 			if (luaL_loadfile(L, GetFilename().mb_str(wxConvUTF8))) {
@@ -473,6 +849,7 @@ namespace Automation4 {
 				err->Prepend(_T("An error occurred loading the Lua script file \"") + GetFilename() + _T("\":\n\n"));
 				throw err->c_str();
 			}
+			_stackcheck.check(1);
 			// and execute it
 			// this is where features are registered
 			// TODO: make sure a progress window is ready here!
@@ -486,6 +863,7 @@ namespace Automation4 {
 					throw err.c_str();
 				}
 			}
+			_stackcheck.check(0);
 			lua_getglobal(L, "script_name");
 			if (lua_isstring(L, -1)) {
 				name = wxString(lua_tostring(L, -1), wxConvUTF8);
@@ -494,6 +872,7 @@ namespace Automation4 {
 				name = GetFilename();
 			}
 			// if we got this far, the script should be ready
+			_stackcheck.check(0);
 
 		}
 		catch (const wchar_t *e) {
@@ -595,6 +974,13 @@ namespace Automation4 {
 		}
 	}
 
+	void LuaFeature::ThrowError()
+	{
+		wxString err(lua_tostring(L, -1), wxConvUTF8);
+		lua_pop(L, 1);
+		wxLogError(err);
+	}
+
 
 	int LuaFeatureMacro::LuaRegister(lua_State *L)
 	{
@@ -678,12 +1064,13 @@ namespace Automation4 {
 
 	void LuaFeatureMacro::Process(AssFile *subs, std::vector<int> &selected, int active)
 	{
-		int startstack = lua_gettop(L);
+		LuaStackcheck _stackcheck(L);
 
 		wxLogDebug(_T("Process start"));
 
 		GetFeatureFunction(1);
 		wxLogDebug(_T("Got function"));
+		_stackcheck.check(1);
 
 		// prepare function call
 		LuaAssFile *subsobj = new LuaAssFile(L, subs); // subs object
@@ -695,9 +1082,10 @@ namespace Automation4 {
 		wxLogDebug(_T("Waiting for call to finish"));
 		wxThread::ExitCode code = call.Wait();
 		wxLogDebug(_T("Exit code was %d"), (int)code);
+		if (code) ThrowError();
 
 		// stack should be empty now
-		assert(lua_gettop(L) == startstack);
+		_stackcheck.check(0);
 		wxLogDebug(_T("Finished processing"));
 	}
 

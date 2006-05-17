@@ -410,7 +410,7 @@ void DialogStyleEditor::Apply (bool apply,bool close) {
 		// Copy
 		*style = *work;
 		style->UpdateData();
-		AssFile::top->FlagAsModified();
+		AssFile::top->FlagAsModified(_("Modify Style"));
 		grid->CommitChanges();
 
 		// Exit

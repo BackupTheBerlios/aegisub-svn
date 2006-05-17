@@ -79,7 +79,7 @@ name (string)
 fontname (string)
   Name of the font used.
 
-fontsize (string)
+fontsize (number)
   Size of the font used, in pixels.
 
 color1 (string)
@@ -137,7 +137,7 @@ relative_to (number)
   From STS.h: "0: window, 1: video, 2: undefined (~window)"
 
 vertical (boolean)
-  Whether vertical text semantics is used or not.
+  Whether vertical text semantics is used or not. (Tentative AS5 field.)
 
 
 Keys defined only for the "stylex" class:
@@ -230,10 +230,6 @@ subs[-i] = line
 subs.insert(i, line[, line2, ...])
   Insert one or more lines before index i.
 
-Note that the array-style accessors are most likely faster for any case only
-involving one line at a time, while the function syntax versions are probably
-faster if operating on multiple lines at a time.
-
 
 Effeciency concerns
 
@@ -241,18 +237,18 @@ Internally in Aegisub the subtitles are stored in a linked list, meaning
 random access runs in O(n) time rather than O(1), as the interface presented
 here could make it seem like.
 
-The implementation of the Subtitle File object does some caching, so access to
-items close to the last used index will be faster than to items further from.
+Internally, a cursor to the last accessed item is kept, to make sequential or
+mostly-sequential access to items faster, but totally random access will
+still be somewhat ineffecient. Accessing items near the start or end of the
+subtitle file can also be done reasonable fast however.
 
-For this reason, try to avoid totally random access to the subtitle data, but
-try to make your algorithms work in as linear passes as possible.
-
-The cache described here currently only covers the single last accessed item,
-but this might later be extended to two or more, to better support algorithms
-working from multiple points.
-
-However, because of this linked-list implementation, random inserts can still
-be made reasonably fast, as can both appends and prepends.
+After an item-by-item deletion, the cursor will be placed at the item that
+now has the lowest id specified for the operation.
+After a range deletion operation, the cursor will be placed at the item
+that now has the first id in the range of the operation.
+After an insert operation, the cursor will be placed after the last inserted
+item.
+An append operation does not move the cursor.
 
 ---
 
@@ -403,6 +399,9 @@ undoable as a separate step. It is considered very bad practice to modify
 the subtitles in a macro without setting at least one undo-point, which must
 be at the end.
 
+An undo step can consist of any number of subtitle operations. (Ie. inserting,
+deleting and replacing subtitle file lines.)
+
 Furthermore, this function also marks the subtitles as "modified". No other
 function does this.
 
@@ -410,8 +409,7 @@ function aegisub.set_undo_point(description)
 
 @description (string)
   A short description of the operation that will be undone, if this undo-point
-  is used. Note that this is currently unused in Aegisub, and this parameter
-  is simply ignored.
+  is used.
 
 Returns: nothing.
 

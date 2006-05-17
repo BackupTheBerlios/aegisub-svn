@@ -476,7 +476,7 @@ void DialogStyleManager::OnCopyToCurrent (wxCommandEvent &event) {
 		}
 	}
 	LoadCurrentStyles(AssFile::top);
-	grid->ass->FlagAsModified();
+	grid->ass->FlagAsModified(_("Copy Style from Storage"));
 	grid->CommitChanges();
 }
 
@@ -525,7 +525,7 @@ void DialogStyleManager::OnCurrentCopy (wxCommandEvent &event) {
 	}
 	else delete temp;
 
-	grid->ass->FlagAsModified();
+	grid->ass->FlagAsModified(_("Duplicate Style"));
 	grid->CommitChanges();
 }
 
@@ -625,7 +625,7 @@ void DialogStyleManager::OnCurrentDelete (wxCommandEvent &event) {
 		CurrentCopy->Enable(false);
 		CurrentDelete->Enable(false);
 
-		grid->ass->FlagAsModified();
+		grid->ass->FlagAsModified(_("Delete Style"));
 		grid->CommitChanges();
 	}
 }

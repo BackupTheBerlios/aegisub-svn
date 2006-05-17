@@ -572,7 +572,7 @@ bool AssFile::IsModified() {
 
 /////////////////////////
 // Flag file as modified
-void AssFile::FlagAsModified() {
+void AssFile::FlagAsModified(const wxString &description) {
 	// Clear redo
 	if (!RedoStack.empty()) {
 		//StackPush();
@@ -583,7 +583,8 @@ void AssFile::FlagAsModified() {
 		RedoStack.clear();
 	}
 
-	Modified = true;
+	top->Modified = true;
+	top->undoAction = description;
 	StackPush();
 }
 
@@ -705,6 +706,28 @@ bool AssFile::IsUndoStackEmpty() {
 // Returns if redo stack is empty
 bool AssFile::IsRedoStackEmpty() {
 	return RedoStack.empty();
+}
+
+
+/////////////////////////////////////////////////
+// Returns the description of the next undo item
+const wxChar* AssFile::GetUndoActionName() {
+	if (!IsUndoStackEmpty()) {
+		return UndoStack.back()->undoAction.c_str();
+	} else {
+		return _T("");
+	}
+}
+
+
+/////////////////////////////////////////////////
+// Returns the description of the next redo item
+const wxChar* AssFile::GetRedoActionName() {
+	if (!IsRedoStackEmpty()) {
+		return RedoStack.back()->undoAction.c_str();
+	} else {
+		return _T("");
+	}
 }
 
 

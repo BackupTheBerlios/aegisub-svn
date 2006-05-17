@@ -73,19 +73,20 @@ public:
 	wxString filename;
 	bool loaded;
 	bool IsASS;
+	wxString undoAction; // name of the action that caused this undo step
 
 	AssFile();
 	AssFile(AssFile &from);
 	~AssFile();
 
-	bool IsModified();									// Returns if file has unmodified changes
-	void FlagAsModified();								// Flag file as being modified, will automatically put a copy on stack
-	void Clear();										// Wipes file
-	void CompressForStack(bool compress);				// Compress/decompress for storage on stack
-	void LoadDefault(bool noline=true);					// Loads default file. Pass true to prevent it from adding a default line too
-	void InsertStyle(AssStyle *style);					// Inserts a style to file
-	wxArrayString GetStyles();							// Gets a list of all styles available
-	AssStyle *GetStyle(wxString name);					// Gets style by its name
+	bool IsModified();											// Returns if file has unmodified changes
+	static void FlagAsModified(const wxString &description);	// Flag file as being modified, will automatically put a copy on stack
+	void Clear();												// Wipes file
+	void CompressForStack(bool compress);						// Compress/decompress for storage on stack
+	void LoadDefault(bool noline=true);							// Loads default file. Pass true to prevent it from adding a default line too
+	void InsertStyle(AssStyle *style);							// Inserts a style to file
+	wxArrayString GetStyles();									// Gets a list of all styles available
+	AssStyle *GetStyle(wxString name);							// Gets style by its name
 
 	void Load(wxString file,wxString charset=_T(""));	// Load from a file
 	void Save(wxString file,bool setfilename=false,bool addToRecent=true,const wxString encoding=_T(""));	// Save to a file. Pass true to second argument if this isn't a copy
@@ -104,6 +105,8 @@ public:
 	static void StackReset();	// Resets stack. Do this before loading new subtitles.
 	static bool IsUndoStackEmpty();	// Checks if undo stack is empty
 	static bool IsRedoStackEmpty();	// Checks if undo stack is empty
+	static const wxChar* GetUndoActionName(); // Description of the action that will be undone next
+	static const wxChar* GetRedoActionName(); // Description of the action that will be redone next
 	static bool Popping;		// Flags the stack as popping. You must unset this after popping
 	static AssFile *top;		// Current script file. It is "above" the stack.
 };

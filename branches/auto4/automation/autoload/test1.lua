@@ -41,8 +41,21 @@ function testcount(subtitles, selected_lines, active_line)
 	return #selected_lines > 1
 end
 
+function inserttest(subtitles, selected_lines, active_line)
+	local lid = selected_lines[1]
+	subtitles[-lid] = subtitles[lid]
+	subtitles[0] = subtitles[lid]
+	local l = subtitles[lid]
+	l.text = "A4 was here!"
+	subtitles[lid] = l
+	aegisub.set_undo_point("Insert Stuff")
+end
+
+
 aegisub.register_macro("Hello", "Shows a message", "tools", macro_test1, testcount)
 
 aegisub.register_macro("File line count", "Count the number of lines in the ASS file", "tools", macro_test2, nil)
 
 aegisub.register_macro("Dump", "Dumps info on every line in the file", "tools", dumper, nil)
+
+aegisub.register_macro("Insert stuff", "Inserts some lines near the active line", "edit", inserttest, nil)

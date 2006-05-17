@@ -168,7 +168,7 @@ void DialogProperties::OnOK(wxCommandEvent &event) {
 	count += SetInfoIfDifferent(_T("PlayResY"),ResY->GetValue());
 	count += SetInfoIfDifferent(_T("WrapStyle"),wxString::Format(_T("%i"),WrapStyle->GetSelection()));
 	
-	if (count) AssFile::top->FlagAsModified();
+	if (count) AssFile::top->FlagAsModified(_("Change Script Info"));
 
 	EndModal(count?1:0);
 }

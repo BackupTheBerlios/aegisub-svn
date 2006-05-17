@@ -328,7 +328,7 @@ void SubtitlesGrid::OnSplitByKaraoke (wxCommandEvent &event) {
 	for (int i = sels.size()-1; i >= 0; i--) {
 		SplitLineByKaraoke(sels[i]);
 	}
-	ass->FlagAsModified();
+	ass->FlagAsModified(_("Split by Karaoke"));
 	CommitChanges();
 }
 
@@ -536,7 +536,7 @@ void SubtitlesGrid::On122Recombine(wxCommandEvent &event) {
 		n2->UpdateData();
 
 		// Commit
-		ass->FlagAsModified();
+		ass->FlagAsModified(_("Recombine 1+2, 2"));
 		CommitChanges();
 	} else {
 		parentFrame->StatusTimeout(_T("Unable to recombine: Second line is not a suffix of first one."));
@@ -573,7 +573,7 @@ void SubtitlesGrid::On112Recombine(wxCommandEvent &event) {
 		n2->UpdateData();
 
 		// Commit
-		ass->FlagAsModified();
+		ass->FlagAsModified(_("Recombine 1, 1+2"));
 		CommitChanges();
 	} else {
 		parentFrame->StatusTimeout(_T("Unable to recombine: First line is not a prefix of second one."));
@@ -648,7 +648,7 @@ void SubtitlesGrid::LoadFromAss (AssFile *_ass,bool keepSelection,bool dontModif
 	// Commit
 	if (!AssFile::Popping) {
 		if (dontModify) AssFile::StackPush();
-		else ass->FlagAsModified();
+		else ass->FlagAsModified(_T("Unknown")); // *FIXME*
 	}
 	CommitChanges();
 
@@ -689,7 +689,7 @@ void SubtitlesGrid::SwapLines(int n1,int n2) {
 	diagPtrMap[n1] = (AssDialogue*) *src1;
 	diagMap[n2] = src2;
 	diagPtrMap[n2] = (AssDialogue*) *src2;
-	ass->FlagAsModified();
+	ass->FlagAsModified(_("Swap Lines"));
 	CommitChanges();
 }
 
@@ -715,7 +715,7 @@ void SubtitlesGrid::InsertLine(AssDialogue *line,int n,bool after,bool update) {
 
 	// Update
 	if (update) {
-		ass->FlagAsModified();
+		ass->FlagAsModified(_("Insert Line"));
 		CommitChanges();
 	}
 }
@@ -789,7 +789,7 @@ void SubtitlesGrid::PasteLines(int n) {
 			// Commit
 			UpdateMaps();
 			AdjustScrollbar();
-			ass->FlagAsModified();
+			ass->FlagAsModified(wxString::Format(_("Paste %d lines"), inserted));
 			CommitChanges();
 
 			// Set selection
@@ -826,7 +826,7 @@ void SubtitlesGrid::DeleteLines(wxArrayInt target) {
 	// Update
 	UpdateMaps();
 	AdjustScrollbar();
-	ass->FlagAsModified();
+	ass->FlagAsModified(wxString::Format(_("Delete %d lines"), deleted));
 	CommitChanges();
 
 	// Update editbox
@@ -905,7 +905,7 @@ void SubtitlesGrid::AdjoinLines(int n1,int n2,bool setStart) {
 	}
 
 	// Commit
-	AssFile::top->FlagAsModified();
+	AssFile::top->FlagAsModified(_("Make Continuous"));
 	CommitChanges();
 }
 
@@ -1066,7 +1066,7 @@ void SubtitlesGrid::SplitLine(int n,int pos,int mode) {
 	editBox->SetToLine(n);
 
 	// Commit
-	ass->FlagAsModified();
+	ass->FlagAsModified(_("Split Line"));
 	CommitChanges();
 }
 
@@ -1218,7 +1218,7 @@ void SubtitlesGrid::SetSubsToVideo(bool start) {
 
 	// Commit
 	if (modified) {
-		ass->FlagAsModified();
+		ass->FlagAsModified(_("Set Subs to Video"));
 		CommitChanges();
 		editBox->Update();
 	}

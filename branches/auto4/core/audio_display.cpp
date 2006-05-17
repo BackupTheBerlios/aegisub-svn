@@ -1073,7 +1073,11 @@ void AudioDisplay::CommitChanges () {
 
 	// Update grid
 	grid->editBox->Update(!karaoke->enabled);
-	grid->ass->FlagAsModified();
+	if (karaoke->enabled) {
+		grid->ass->FlagAsModified(_("Change Karaoke Timing"));
+	} else {
+		grid->ass->FlagAsModified(_("Change Timing"));
+	}
 	grid->CommitChanges();
 	karaoke->curSyllable = karSyl;
 	blockUpdate = false;

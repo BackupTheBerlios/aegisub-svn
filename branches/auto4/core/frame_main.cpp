@@ -230,8 +230,8 @@ void FrameMain::InitMenu() {
 
 	// Create Edit menu
 	editMenu = new wxMenu();
-	AppendBitmapMenuItem (editMenu,Menu_Edit_Undo, _("&Undo\t") + Hotkeys.GetText(_T("Undo")), _("Undoes last action"),wxBITMAP(undo_button));
-	AppendBitmapMenuItem (editMenu,Menu_Edit_Redo, _("&Redo\t") + Hotkeys.GetText(_T("Redo")), _("Redoes last action"),wxBITMAP(redo_button));
+	AppendBitmapMenuItem (editMenu,Menu_Edit_Undo, _("&Undo %s\t") + Hotkeys.GetText(_T("Undo")), _("Undoes last action"),wxBITMAP(undo_button));
+	AppendBitmapMenuItem (editMenu,Menu_Edit_Redo, _("&Redo %s\t") + Hotkeys.GetText(_T("Redo")), _("Redoes last action"),wxBITMAP(redo_button));
 	editMenu->AppendSeparator();
 	editMenu->Append(Menu_Edit_Select, _("&Select lines...\t") + Hotkeys.GetText(_T("Select lines")), _("Selects lines based on defined criterea"));
 	editMenu->Append(Menu_Edit_Shift, _("S&hift times...\t") + Hotkeys.GetText(_T("Shift times")), _("Shift subtitles by time or frames"));
@@ -445,7 +445,7 @@ void FrameMain::MenuItemEnable (int id, bool state,wxBitmap &bmp1,wxBitmap &bmp2
 
 /////////////////////////////////
 // Helper to rebuild menu items
-wxMenuItem *FrameMain::RebuildMenuItem(wxMenu *menu,int findId,wxBitmap bmp1,wxBitmap bmp2,bool state) {
+wxMenuItem *FrameMain::RebuildMenuItem(wxMenu *menu,int findId,wxBitmap bmp1,wxBitmap bmp2,bool state,const wxString &text) {
 	// Find pos
 	wxMenuItemList items = menu->GetMenuItems();
 	int pos = -1;
@@ -460,9 +460,10 @@ wxMenuItem *FrameMain::RebuildMenuItem(wxMenu *menu,int findId,wxBitmap bmp1,wxB
 	// Get ID and pointer
 	wxMenuItem *cur = items[pos];
 	int id = cur->GetId();
+	wxString newtext = text.IsEmpty() ? cur->GetText() : text;
 
 	// Rebuild
-	wxMenuItem *newItem = new wxMenuItem(menu,id,cur->GetText(),cur->GetHelp(),cur->GetKind(),cur->GetSubMenu());
+	wxMenuItem *newItem = new wxMenuItem(menu,id,newtext,cur->GetHelp(),cur->GetKind(),cur->GetSubMenu());
 	if (state) newItem->SetBitmap(bmp1);
 	else newItem->SetBitmap(bmp2);
 

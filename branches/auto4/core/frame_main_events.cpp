@@ -342,8 +342,8 @@ void FrameMain::OnMenuOpen (wxMenuEvent &event) {
 	// Edit menu
 	else if (curMenu == editMenu) {
 		// Undo state
-		RebuildMenuItem(editMenu,Menu_Edit_Undo,wxBITMAP(undo_button),wxBITMAP(undo_disable_button),!AssFile::IsUndoStackEmpty());
-		RebuildMenuItem(editMenu,Menu_Edit_Redo,wxBITMAP(redo_button),wxBITMAP(redo_disable_button),!AssFile::IsRedoStackEmpty());
+		RebuildMenuItem(editMenu,Menu_Edit_Undo,wxBITMAP(undo_button),wxBITMAP(undo_disable_button),!AssFile::IsUndoStackEmpty(), wxString::Format(_("Undo %s\t"), AssFile::GetUndoActionName()) + Hotkeys.GetText(_T("Undo")));
+		RebuildMenuItem(editMenu,Menu_Edit_Redo,wxBITMAP(redo_button),wxBITMAP(redo_disable_button),!AssFile::IsRedoStackEmpty(), wxString::Format(_("Redo %s\t"), AssFile::GetRedoActionName()) + Hotkeys.GetText(_T("Redo")));
 
 		// Copy/cut/paste
 		wxArrayInt sels = SubsBox->GetSelection();
@@ -886,7 +886,7 @@ void FrameMain::OnSnapToScene (wxCommandEvent &event) {
 		}
 
 		// Commit
-		SubsBox->ass->FlagAsModified();
+		SubsBox->ass->FlagAsModified(_("Snap Timing to Keyframes"));
 		SubsBox->CommitChanges();
 	}
 }
@@ -917,7 +917,7 @@ void FrameMain::OnShiftToFrame (wxCommandEvent &event) {
 		}
 
 		// Commit
-		SubsBox->ass->FlagAsModified();
+		SubsBox->ass->FlagAsModified(_("Shift Timing to Frame"));
 		SubsBox->CommitChanges();
 	}
 }
@@ -932,7 +932,7 @@ void FrameMain::OnUndo(wxCommandEvent& WXUNUSED(event)) {
 
 	videoBox->videoDisplay->Stop();
 	AssFile::StackPop();
-	SubsBox->LoadFromAss(AssFile::top,true);
+	SubsBox->LoadFromAss(AssFile::top,true,false);
 	AssFile::Popping = false;
 }
 
@@ -942,7 +942,7 @@ void FrameMain::OnUndo(wxCommandEvent& WXUNUSED(event)) {
 void FrameMain::OnRedo(wxCommandEvent& WXUNUSED(event)) {
 	videoBox->videoDisplay->Stop();
 	AssFile::StackRedo();
-	SubsBox->LoadFromAss(AssFile::top,true);
+	SubsBox->LoadFromAss(AssFile::top,true,false);
 	AssFile::Popping = false;
 }
 
@@ -1279,6 +1279,12 @@ void FrameMain::OnViewSubs (wxCommandEvent &event) {
 ///////////////////////////////////////////////////////////
 // General handler for all Automation-generated menu items
 void FrameMain::OnAutomationMacro(wxCommandEvent &event) {
+	AssFile *oldtop = AssFile::top;
 	activeMacroItems[event.GetId()-Menu_Automation_Macro]->Process(SubsBox->ass, SubsBox->GetAbsoluteSelection(), SubsBox->GetFirstSelRow());
+	// check if modifications were made and put on undo stack
+	if (oldtop != AssFile::top) {
+		// if so, update the display
+		SubsBox->LoadFromAss(AssFile::top, true, true);
+	}
 }
 

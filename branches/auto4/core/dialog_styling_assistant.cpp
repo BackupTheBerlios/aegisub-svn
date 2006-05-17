@@ -150,7 +150,7 @@ wxDialog (parent, -1, _("Styling assistant"), wxDefaultPosition, wxDefaultSize, 
 DialogStyling::~DialogStyling () {
 	GetPosition(&lastx, &lasty);
 	if (needCommit) {
-		grid->ass->FlagAsModified();
+		grid->ass->FlagAsModified(_("Change Style (Assistant)"));
 		grid->CommitChanges();
 	}
 }
@@ -217,7 +217,7 @@ void DialogStyling::SetStyle (wxString curName, bool jump) {
 	// Update grid/subs
 	grid->Refresh(false);
 	if (PreviewCheck->IsChecked()) {
-		grid->ass->FlagAsModified();
+		grid->ass->FlagAsModified(_("Change Style (Assistant)"));
 		grid->CommitChanges();
 	}
 	else needCommit = true;

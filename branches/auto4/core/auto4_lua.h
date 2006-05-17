@@ -54,6 +54,7 @@ namespace Automation4 {
 		// keep a cursor of last accessed item to avoid walking over the entire file on every access
 		std::list<AssEntry*>::iterator last_entry_ptr;
 		int last_entry_id;
+		void GetAssEntry(int n); // set last_entry_ptr to point to item n
 
 		void AssEntryToLua(AssEntry *e); // makes a Lua representation of AssEntry and places on the top of the stack
 		AssEntry *LuaToAssEntry(); // assumes a Lua representation of AssEntry on the top of the stack, and creates an AssEntry object of it
@@ -85,6 +86,7 @@ namespace Automation4 {
 
 		void GetFeatureFunction(int functionid);
 		void CreateIntegerArray(std::vector<int> &ints);
+		void ThrowError();
 	};
 
 	class LuaScript : public Script {
