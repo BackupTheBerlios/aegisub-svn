@@ -867,10 +867,22 @@ namespace Automation4 {
 			lua_getglobal(L, "script_name");
 			if (lua_isstring(L, -1)) {
 				name = wxString(lua_tostring(L, -1), wxConvUTF8);
-				lua_pop(L, 1);
 			} else {
 				name = GetFilename();
 			}
+			lua_getglobal(L, "script_description");
+			if (lua_isstring(L, -1)) {
+				description = wxString(lua_tostring(L, -1), wxConvUTF8);
+			}
+			lua_getglobal(L, "script_author");
+			if (lua_isstring(L, -1)) {
+				author = wxString(lua_tostring(L, -1), wxConvUTF8);
+			}
+			lua_getglobal(L, "script_version");
+			if (lua_isstring(L, -1)) {
+				version = wxString(lua_tostring(L, -1), wxConvUTF8);
+			}
+			lua_pop(L, 4);
 			// if we got this far, the script should be ready
 			_stackcheck.check(0);
 
@@ -888,8 +900,9 @@ namespace Automation4 {
 		if (!L) return;
 
 		// remove features
-		for (std::vector<Feature*>::iterator i = features.begin(); i != features.end(); i++) {
-			delete *i;
+		for (int i = 0; i < features.size(); i++) {
+			Feature *f = features[i];
+			delete f;
 		}
 		features.clear();
 
@@ -1090,28 +1103,25 @@ namespace Automation4 {
 	}
 
 
+	// Factory class for Lua scripts
+	// Not declared in header, since it doesn't need to be accessed from outside
+	// except through polymorphism
 	class LuaScriptFactory : public ScriptFactory {
 	public:
 		LuaScriptFactory()
 		{
 			engine_name = _T("Lua");
+			filename_pattern = _T("*.lua");
 			Register(this);
 		}
 
 		virtual Script* Produce(const wxString &filename) const
 		{
-			// *FIXME* temporary measure
-			return new LuaScript(filename);
-			// Check if the file can be parsed as a Lua script;
-			// create a temporary interpreter for that and attempt to load
-			// but NOT execute the script
-			lua_State *L = lua_open();
-			if (luaL_loadfile(L, filename.mb_str(wxConvUTF8)) == 0) {
-				// success! parsed it without errors
-				lua_close(L);
+			// Just check if file extension is .lua
+			// Reject anything else
+			if (filename.Right(4).Lower() == _T(".lua")) {
 				return new LuaScript(filename);
 			} else {
-				lua_close(L);
 				return 0;
 			}
 		}

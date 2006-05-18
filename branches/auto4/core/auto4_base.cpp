@@ -34,6 +34,8 @@
 //
 
 #include "auto4_base.h"
+#include <wx/filename.h>
+#include <wx/dir.h>
 
 namespace Automation4 {
 
@@ -194,7 +196,7 @@ namespace Automation4 {
 
 	ScriptManager::~ScriptManager()
 	{
-		// do nothing...?
+		RemoveAll();
 	}
 
 	void ScriptManager::Add(Script *script)
@@ -209,10 +211,19 @@ namespace Automation4 {
 	{
 		for (std::vector<Script*>::iterator i = scripts.begin(); i != scripts.end(); ++i) {
 			if (script == *i) {
+				delete *i;
 				scripts.erase(i);
 				return;
 			}
 		}
+	}
+
+	void ScriptManager::RemoveAll()
+	{
+		for (std::vector<Script*>::iterator i = scripts.begin(); i != scripts.end(); ++i) {
+			delete *i;
+		}
+		scripts.clear();
 	}
 
 	const std::vector<Script*>& ScriptManager::GetScripts() const
@@ -236,6 +247,36 @@ namespace Automation4 {
 	}
 
 
+	// AutoloadScriptManager
+
+	AutoloadScriptManager::AutoloadScriptManager(const wxString &_path)
+		: path(_path)
+	{
+		Reload();
+	}
+
+	void AutoloadScriptManager::Reload()
+	{
+		wxDir dir(path);
+		if (!dir.IsOpened()) {
+			// crap
+			return;
+		}
+
+		RemoveAll();
+
+		wxString fn;
+		wxFileName script_path(path, _T(""));
+		bool more = dir.GetFirst(&fn, wxEmptyString, wxDIR_FILES);
+		while (more) {
+			script_path.SetName(fn);
+			Add(ScriptFactory::CreateFromFile(script_path.GetFullPath()));
+			more = dir.GetNext(&fn);
+		}
+	}
+
+
+
 	// ScriptFactory
 
 	std::vector<ScriptFactory*> ScriptFactory::factories;
@@ -243,6 +284,11 @@ namespace Automation4 {
 	const wxString& ScriptFactory::GetEngineName() const
 	{
 		return engine_name;
+	}
+
+	const wxString& ScriptFactory::GetFilenamePattern() const
+	{
+		return filename_pattern;
 	}
 
 	void ScriptFactory::Register(ScriptFactory *factory)
@@ -271,12 +317,24 @@ namespace Automation4 {
 			Script *s = (*i)->Produce(filename);
 			if (s) return s;
 		}
-		return 0;
+		return new UnknownScript(filename);
 	}
 
 	const std::vector<ScriptFactory*>& ScriptFactory::GetFactories()
 	{
 		return factories;
+	}
+
+
+	// UnknownScript
+
+	UnknownScript::UnknownScript(const wxString &filename)
+		: Script(filename)
+	{
+		wxFileName fn(filename);
+		name = fn.GetName();
+		description = _("File was not recognized as a script");
+		loaded = false;
 	}
 
 };

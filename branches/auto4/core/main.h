@@ -45,11 +45,10 @@
 #include <fstream>
 #include "aegisublocale.h"
 
-#include "auto4_base.h"
-
 //////////////
 // Prototypes
 class FrameMain;
+namespace Automation4 { class AutoloadScriptManager; }
 
 
 ////////////////////////////////
@@ -62,7 +61,7 @@ private:
 public:
 	AegisubLocale locale;
 	FrameMain *frame;
-	Automation4::ScriptManager *global_scripts;
+	Automation4::AutoloadScriptManager *global_scripts;
 
 	static wxString fullPath;
 	static wxString folderName;

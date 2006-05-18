@@ -99,16 +99,7 @@ bool AegisubApp::OnInit() {
 		locale.Init(lang);
 
 		// Load Automation scripts
-		try {
-			global_scripts = new Automation4::ScriptManager();
-			global_scripts->Add(Automation4::ScriptFactory::CreateFromFile(_T("automation/autoload/test1.lua")));
-		}
-		catch (const wchar_t *e) {
-			wxLogError(_T("%s"), e);
-		}
-		catch (...) {
-			wxLogError(_T("Unknown error initialising Automation"));
-		}
+		global_scripts = new Automation4::AutoloadScriptManager(Options.AsText(_T("Automation Autoload Path")));
 
 		// Load export filters
 		AssExportFilterChain::PrepareFilters();

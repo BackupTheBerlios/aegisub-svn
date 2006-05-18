@@ -54,7 +54,7 @@ class SubsEditBox;
 class AudioBox;
 class VideoBox;
 class AegisubFileDropTarget;
-namespace Automation4 { class FeatureMacro; };
+namespace Automation4 { class FeatureMacro; class ScriptManager; };
 
 
 ////////////////////
@@ -92,6 +92,8 @@ private:
 	wxComboBox *ZoomBox;
 
 	wxWindow *PreviousFocus;
+
+	Automation4::ScriptManager *local_scripts;
 
 	std::vector<Automation4::FeatureMacro*> activeMacroItems;
 	void AddMacroMenuItems(wxMenu *menu, const std::vector<Automation4::FeatureMacro*> &macros);
@@ -202,6 +204,7 @@ private:
 	void OnOpenHotkeys (wxCommandEvent &event);
 
 	void OnAutomationMacro(wxCommandEvent &event);
+	void OnAutomationManager(wxCommandEvent &event);
 
 	void OnNextFrame(wxCommandEvent &event);
 	void OnPrevFrame(wxCommandEvent &event);

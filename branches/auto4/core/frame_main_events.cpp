@@ -79,6 +79,8 @@
 #include "dialog_fextracker.h"
 #endif
 #include "dialog_progress.h"
+#include "auto4_base.h"
+#include "dialog_automation.h"
 
 
 ////////////////////
@@ -163,6 +165,7 @@ BEGIN_EVENT_TABLE(FrameMain, wxFrame)
 
 	EVT_MENU(Menu_Tools_Properties, FrameMain::OnOpenProperties)
 	EVT_MENU(Menu_Tools_Styles_Manager, FrameMain::OnOpenStylesManager)
+	EVT_MENU(Menu_Tools_Automation, FrameMain::OnAutomationManager)
 	EVT_MENU(Menu_Tools_Translation, FrameMain::OnOpenTranslation)
 	EVT_MENU(Menu_Tools_SpellCheck, FrameMain::OnOpenSpellCheck)
 	EVT_MENU(Menu_Tools_Fonts_Collector, FrameMain::OnOpenFontsCollector)
@@ -306,6 +309,7 @@ void FrameMain::OnMenuOpen (wxMenuEvent &event) {
 		if (added == 0) RecentVids->Append(Menu_Video_Recent,_T("Empty"))->Enable(false);
 
 		AddMacroMenuItems(videoMenu, wxGetApp().global_scripts->GetMacros(Automation4::MACROMENU_VIDEO));
+		AddMacroMenuItems(videoMenu, local_scripts->GetMacros(Automation4::MACROMENU_VIDEO));
 	}
 
 	// Audio menu
@@ -337,6 +341,7 @@ void FrameMain::OnMenuOpen (wxMenuEvent &event) {
 		if (added == 0) RecentAuds->Append(Menu_Audio_Recent,_T("Empty"))->Enable(false);
 
 		AddMacroMenuItems(audioMenu, wxGetApp().global_scripts->GetMacros(Automation4::MACROMENU_AUDIO));
+		AddMacroMenuItems(audioMenu, local_scripts->GetMacros(Automation4::MACROMENU_AUDIO));
 	}
 
 	// Edit menu
@@ -353,10 +358,12 @@ void FrameMain::OnMenuOpen (wxMenuEvent &event) {
 		RebuildMenuItem(editMenu,Menu_Edit_Paste,wxBITMAP(paste_button),wxBITMAP(paste_disable_button),state);
 
 		AddMacroMenuItems(editMenu, wxGetApp().global_scripts->GetMacros(Automation4::MACROMENU_EDIT));
+		AddMacroMenuItems(editMenu, local_scripts->GetMacros(Automation4::MACROMENU_EDIT));
 	}
 
 	else if (curMenu == toolMenu) {
 		AddMacroMenuItems(toolMenu, wxGetApp().global_scripts->GetMacros(Automation4::MACROMENU_TOOLS));
+		AddMacroMenuItems(toolMenu, local_scripts->GetMacros(Automation4::MACROMENU_TOOLS));
 	}
 
 	//Thaw();
@@ -1276,9 +1283,17 @@ void FrameMain::OnViewSubs (wxCommandEvent &event) {
 }
 
 
+///////////////////////////
+// Open Automation Manager
+void FrameMain::OnAutomationManager (wxCommandEvent &event) {
+	DialogAutomation dlg(this, local_scripts);
+	dlg.ShowModal();
+}
+
+
 ///////////////////////////////////////////////////////////
 // General handler for all Automation-generated menu items
-void FrameMain::OnAutomationMacro(wxCommandEvent &event) {
+void FrameMain::OnAutomationMacro (wxCommandEvent &event) {
 	AssFile *oldtop = AssFile::top;
 	activeMacroItems[event.GetId()-Menu_Automation_Macro]->Process(SubsBox->ass, SubsBox->GetAbsoluteSelection(), SubsBox->GetFirstSelRow());
 	// check if modifications were made and put on undo stack

@@ -64,6 +64,7 @@
 #include "hotkeys.h"
 #include "utils.h"
 #include "text_file_reader.h"
+#include "auto4_base.h"
 
 
 /////////////////////////
@@ -89,6 +90,8 @@ FrameMain::FrameMain (wxArrayString args)
 	menuCreated = false;
 	blockAudioLoad = false;
 	blockAudioLoad = false;
+
+	local_scripts = new Automation4::ScriptManager();
 
 	// Create menu and tool bars
 	InitToolbar();
@@ -128,6 +131,7 @@ FrameMain::FrameMain (wxArrayString args)
 // FrameMain destructor
 FrameMain::~FrameMain () {
 	DeInitContents();
+	delete local_scripts;
 }
 
 
@@ -514,6 +518,7 @@ void FrameMain::LoadSubtitles (wxString filename,wxString charset) {
 		else {
 			SubsBox->LoadDefault(AssFile::top);
 		}
+
 	}
 	catch (const wchar_t *err) {
 		wxMessageBox(wxString(err), _T("Error"), wxOK | wxICON_ERROR, NULL);
@@ -729,12 +734,12 @@ void FrameMain::SynchronizeProject(bool fromSubs) {
 		wxString curSubsVideo = DecodeRelativePath(subs->GetScriptInfo(_T("Video File")),AssFile::top->filename);
 		wxString curSubsVFR = DecodeRelativePath(subs->GetScriptInfo(_T("VFR File")),AssFile::top->filename);
 		wxString curSubsAudio = DecodeRelativePath(subs->GetScriptInfo(_T("Audio File")),AssFile::top->filename);
-		wxString AutoScriptString = subs->GetScriptInfo(_T("Automation Scripts"));
+		wxString AutoScriptString = subs->GetScriptInfo(_T("Automation 4 Scripts"));
 
 		// Check if there is anything to change
 		int autoLoadMode = Options.AsInt(_T("Autoload linked files"));
 		bool hasToLoad = false;
-		if (curSubsAudio != audioBox->audioName || curSubsVFR != VFR_Output.GetFilename() || curSubsVideo != videoBox->videoDisplay->videoName) {
+		if (curSubsAudio != audioBox->audioName || curSubsVFR != VFR_Output.GetFilename() || curSubsVideo != videoBox->videoDisplay->videoName || !AutoScriptString.IsEmpty()) {
 			hasToLoad = true;
 		}
 
@@ -768,6 +773,38 @@ void FrameMain::SynchronizeProject(bool fromSubs) {
 			if (curSubsAudio != audioBox->audioName) {
 				if (curSubsAudio == _T("?video")) LoadAudio(_T(""),true);
 				else LoadAudio(curSubsAudio);
+			}
+
+			// Automation scripts
+			local_scripts->RemoveAll();
+			wxStringTokenizer tok(AutoScriptString, _T("|"), wxTOKEN_STRTOK);
+			wxFileName subsfn(subs->filename);
+			wxFileName autobasefn(Options.AsText(_T("Automation Base Path")), _T(""));
+			while (tok.HasMoreTokens()) {
+				wxString sfnames = tok.GetNextToken().Trim(true).Trim(false);
+				wxString sfnamel = sfnames.Left(1);
+				sfnames.Remove(0, 1);
+				wxString basepath;
+				if (sfnamel == _T("~")) {
+					basepath = subsfn.GetPath();
+				} else if (sfnamel == _T("$")) {
+					basepath = autobasefn.GetPath();
+				} else if (sfnamel == _T("/")) {
+					basepath = _T("");
+				} else {
+					wxLogWarning(_T("Automation Script referenced with unknown location specifier character.\nLocation specifier found: %s\nFilename specified: %s"),
+						sfnamel, sfnames);
+					continue;
+				}
+				wxFileName sfname(sfnames);
+				sfname.Normalize(wxPATH_NORM_ALL, basepath);
+				if (sfname.FileExists()) {
+					sfnames = sfname.GetFullPath();
+					local_scripts->Add(Automation4::ScriptFactory::CreateFromFile(sfnames));
+				} else {
+					wxLogWarning(_T("Automation Script referenced could not be found.\nFilename specified: %s%s\nSearched relative to: %s\nResolved filename: %s"),
+						sfnamel, sfnames, basepath, sfname.GetFullPath());
+				}
 			}
 		}
 

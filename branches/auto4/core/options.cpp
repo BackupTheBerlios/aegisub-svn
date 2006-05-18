@@ -212,7 +212,9 @@ void OptionsManager::LoadDefaults() {
 	SetBool(_T("Audio Draw Secondary Lines"), true);
 	SetBool(_T("Audio Draw Selection Background"), true);
 
-	SetText(_T("Automation Include Path"), AegisubApp::folderName + _T("automation/include"));
+	SetText(_T("Automation Base Path"), AegisubApp::folderName + _T("automation/"));
+	SetText(_T("Automation Include Path"), AegisubApp::folderName + _T("automation/include/"));
+	SetText(_T("Automation Autoload Path"), AegisubApp::folderName + _T("automation/autoload/"));
 
 	SetText(_T("Select Text"),_T(""));
 	SetInt(_T("Select Condition"),0);

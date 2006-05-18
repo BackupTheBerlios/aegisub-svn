@@ -75,6 +75,20 @@ namespace Automation4 {
 		LuaAssFile(lua_State *_L, AssFile *_ass);
 	};
 
+	class LuaProgressSink : public ProgressSink {
+	private:
+		lua_State *L;
+
+		static int LuaSetProgress(lua_State *L);
+		static int LuaSetTask(lua_State *L);
+		static int LuaSetTitle(lua_State *L);
+		static int LuaGetCancelled(lua_State *L);
+		static int LuaDebugOut(lua_State *L);
+
+	public:
+		LuaProgressSink(lua_State *L);
+	};
+
 	class LuaFeature : public virtual Feature {
 	protected:
 		lua_State *L;
@@ -125,6 +139,7 @@ namespace Automation4 {
 		LuaFeatureMacro(wxString &_name, wxString &_description, MacroMenu _menu, lua_State *_L);
 	public:
 		static int LuaRegister(lua_State *L);
+		virtual ~LuaFeatureMacro() { }
 
 		virtual bool Validate(AssFile *subs, std::vector<int> &selected, int active);
 		virtual void Process(AssFile *subs, std::vector<int> &selected, int active);

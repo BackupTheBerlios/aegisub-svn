@@ -89,6 +89,8 @@ namespace Automation4 {
 		Feature(ScriptFeatureClass _featureclass, wxString &_name);
 
 	public:
+		virtual ~Feature() { }
+
 		ScriptFeatureClass GetClass() const;
 		FeatureMacro* AsMacro();
 		FeatureFilter* AsFilter();
@@ -108,6 +110,8 @@ namespace Automation4 {
 		FeatureMacro(wxString &_name, wxString &_description, MacroMenu _menu);
 
 	public:
+		virtual ~FeatureMacro() { }
+
 		const wxString& GetDescription() const;
 		MacroMenu GetMenu() const;
 
@@ -124,6 +128,8 @@ namespace Automation4 {
 		// Subclasses should probably implement AssExportFilter::Init
 
 	public:
+		virtual ~FeatureFilter() { }
+
 		// Subclasses must implement the AssExportFilter virtual functions:
 		//   ProcessSubs
 		//   GetConfigDialogWindow
@@ -140,6 +146,8 @@ namespace Automation4 {
 		FeatureSubtitleFormat(wxString &_name, wxString &_extension);
 
 	public:
+		virtual ~FeatureSubtitleFormat() { }
+
 		const wxString& GetExtension() const;
 
 		// Default implementations of these are provided, that just checks extension,
@@ -149,6 +157,25 @@ namespace Automation4 {
 		virtual bool CanReadFile(wxString filename);
 
 		// Subclasses should implement ReadFile and/or WriteFile here
+	};
+
+
+	// Base class for progress reporting/other output
+	class ProgressSink {
+	private: 
+		wxEvtHandler *handler;
+
+	protected:
+		volatile bool cancelled;
+		float progress;
+		wxString task;
+		wxString title;
+
+	public:
+		void SetProgress(float _progress);
+		void SetTask(const wxString &_task);
+		void SetTitle(const wxString *_title);
+		void SetEvtHandler(wxEvtHandler *_handler);
 	};
 
 
@@ -193,15 +220,26 @@ namespace Automation4 {
 
 	public:
 		ScriptManager();
-		~ScriptManager();
-		void Add(Script *script);
-		void Remove(Script *script);
+		virtual ~ScriptManager();		// Deletes all scripts managed
+		void Add(Script *script);		// Add a script to the manager. The ScriptManager takes owvership of the script and will automatically delete it.
+		void Remove(Script *script);	// Remove a script from the manager, and delete the Script object.
+		void RemoveAll();				// Deletes all scripts managed
 
 		const std::vector<Script*>& GetScripts() const;
 
 		const std::vector<FeatureMacro*>& GetMacros(MacroMenu menu);
 		// No need to have getters for the other kinds of features, I think.
 		// They automatically register themselves in the relevant places.
+	};
+
+
+	// Scans a directory for scripts and attempts to load all of them
+	class AutoloadScriptManager : public ScriptManager {
+	private:
+		wxString path;
+	public:
+		AutoloadScriptManager(const wxString &_path);
+		void Reload();
 	};
 
 
@@ -213,14 +251,23 @@ namespace Automation4 {
 	protected:
 		ScriptFactory() { }
 		wxString engine_name;
+		wxString filename_pattern;
 	public:
 		virtual Script* Produce(const wxString &filename) const = 0;
 		const wxString& GetEngineName() const;
+		const wxString& GetFilenamePattern() const;
 
 		static void Register(ScriptFactory *factory);
 		static void Unregister(ScriptFactory *factory);
 		static Script* CreateFromFile(const wxString &filename);
 		static const std::vector<ScriptFactory*>& GetFactories();
+	};
+
+	// Dummy class for scripts that could not be loaded by the ScriptFactory
+	class UnknownScript : public Script {
+	public:
+		UnknownScript(const wxString &filename);
+		void Reload() { };
 	};
 
 };
