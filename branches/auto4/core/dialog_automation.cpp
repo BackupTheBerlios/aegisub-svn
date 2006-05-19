@@ -184,7 +184,16 @@ void DialogAutomation::OnReload(wxCommandEvent &evt)
 	int i = list->GetNextItem(-1, wxLIST_NEXT_ALL, wxLIST_STATE_SELECTED);
 	if (i < 0) return;
 	const ExtraScriptInfo &ei = script_info[list->GetItemData(i)];
-	ei.script->Reload();
+
+	try {
+		ei.script->Reload();
+	}
+	catch (const wchar_t *e) {
+		wxMessageBox(e, _T("Error reloading Automation script"), wxOK|wxICON_ERROR, this);
+	}
+	catch (...) {
+		wxMessageBox(_T("An unknown error occurred reloading Automation script."), _T("Error reloading Automation script"), wxOK|wxICON_ERROR, this);
+	}
 
 	list->SetItem(i, 1, ei.script->GetName());
 	list->SetItem(i, 2, wxFileName(ei.script->GetFilename()).GetFullName());
@@ -230,6 +239,7 @@ void DialogAutomation::OnReloadAutoload(wxCommandEvent &evt)
 {
 	global_manager->Reload();
 	RebuildList();
+	UpdateDisplay();
 }
 
 void DialogAutomation::OnClose(wxCommandEvent &evt)

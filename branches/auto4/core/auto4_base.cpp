@@ -265,13 +265,28 @@ namespace Automation4 {
 
 		RemoveAll();
 
+		int error_count = 0;
+
 		wxString fn;
 		wxFileName script_path(path, _T(""));
 		bool more = dir.GetFirst(&fn, wxEmptyString, wxDIR_FILES);
 		while (more) {
 			script_path.SetName(fn);
-			Add(ScriptFactory::CreateFromFile(script_path.GetFullPath()));
+			try {
+				Add(ScriptFactory::CreateFromFile(script_path.GetFullPath()));
+			}
+			catch (const wchar_t *e) {
+				error_count++;
+				wxLogError(_T("Error loading Automation script: %s\n%s"), fn.c_str(), e);
+			}
+			catch (...) {
+				error_count++;
+				wxLogError(_T("Error loading Automation script: %s\nUnknown error."), fn.c_str());
+			}
 			more = dir.GetNext(&fn);
+		}
+		if (error_count) {
+			wxLogWarning(_T("One or more scripts placed in the Automation autoload directory failed to load\nPlease review the errors above, correct them and use the Reload Autoload dir button in Automation Manager to attempt loading the scripts again."));
 		}
 	}
 

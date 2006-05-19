@@ -887,10 +887,10 @@ namespace Automation4 {
 			_stackcheck.check(0);
 
 		}
-		catch (const wchar_t *e) {
+		catch (...) {
 			Destroy();
 			loaded = false;
-			throw e;
+			throw;
 		}
 	}
 
