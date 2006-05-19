@@ -63,7 +63,7 @@ namespace Automation4 {
 						wxLogDebug(type);
 					}
 				}
-				assert(false);
+				assert(top - additional == startstack);
 			}
 		}
 		LuaStackcheck(lua_State *_L) : L(_L) { startstack = lua_gettop(L); }
@@ -852,10 +852,10 @@ namespace Automation4 {
 			_stackcheck.check(1);
 			// and execute it
 			// this is where features are registered
-			// TODO: make sure a progress window is ready here!
+			// this should run really fast so a progress window isn't needed
+			// (if it infinite-loops, scripter is an idiot and already got his punishment)
 			{
 				LuaThreadedCall call(L, 0, 0);
-				// FIXME: should display modal progress window here!?
 				if (call.Wait()) {
 					// error occurred, assumed to be on top of Lua stack
 					wxString err(lua_tostring(L, -1), wxConvUTF8);
@@ -931,6 +931,8 @@ namespace Automation4 {
 
 	wxThread::ExitCode LuaThreadedCall::Entry()
 	{
+		// TODO: progress window support should probably be done partially here
+		// ie. take argument for the event handler used to comm. to progress window and install in progresssink as needed
 		int result = lua_pcall(L, nargs, nresults, 0);
 		lua_gc(L, LUA_GCCOLLECT, 0);
 		return (wxThread::ExitCode)result;
@@ -1030,7 +1032,6 @@ namespace Automation4 {
 		lua_pushvalue(L, 4);
 		lua_rawseti(L, -2, 1);
 		// and validation function
-		// TODO: check for existing and being a function
 		lua_pushvalue(L, 5);
 		no_validate = !lua_isfunction(L, -1);
 		lua_rawseti(L, -2, 2);

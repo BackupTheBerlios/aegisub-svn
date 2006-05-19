@@ -36,7 +36,9 @@
 #include "main.h"
 #include "dialog_automation.h"
 #include "auto4_base.h"
+#include "options.h"
 #include <wx/filename.h>
+#include <wx/filedlg.h>
 
 
 DialogAutomation::DialogAutomation(wxWindow *parent, Automation4::ScriptManager *_local_manager)
@@ -122,6 +124,7 @@ void DialogAutomation::AddScript(ExtraScriptInfo &ei)
 		itm.SetText(_T("L"));
 	}
 	itm.SetData(script_info.size()-1);
+	itm.SetId(list->GetItemCount());
 	int i = list->InsertItem(itm);
 	list->SetItem(i, 1, ei.script->GetName());
 	list->SetItem(i, 2, wxFileName(ei.script->GetFilename()).GetFullName());
@@ -164,7 +167,43 @@ END_EVENT_TABLE()
 
 void DialogAutomation::OnAdd(wxCommandEvent &evt)
 {
-	// TODO
+	// build filename filter list
+	wxString fnfilter;
+	const std::vector<Automation4::ScriptFactory*> &factories = Automation4::ScriptFactory::GetFactories();
+	for (int i = 0; i < factories.size(); i++) {
+		const Automation4::ScriptFactory *fact = factories[i];
+		if (fact->GetEngineName().IsEmpty() || fact->GetFilenamePattern().IsEmpty())
+			continue;
+		fnfilter = wxString::Format(_T("%s%s scripts|%s|"), fnfilter.c_str(), fact->GetEngineName().c_str(), fact->GetFilenamePattern().c_str());
+	}
+#ifdef __WINDOWS__
+	fnfilter += _T("All files|*.*");
+#else
+	fnfilter += _T("All files|*");
+#endif
+
+	wxString fname = wxFileSelector(_("Add Automation script"), Options.AsText(_T("Last open automation path")), wxEmptyString, wxEmptyString, fnfilter, wxOPEN|wxFILE_MUST_EXIST, this);
+
+	if (!fname.IsEmpty()) {
+
+		// TODO: make sure each script is only loaded once. check in both local and global managers!!
+		// it doesn't break for macros, but will for export filters, and maybe for file formats,
+		// and makes for confusion in the UI anyhow
+
+		try {
+			ExtraScriptInfo ei;
+			ei.script = Automation4::ScriptFactory::CreateFromFile(fname);
+			local_manager->Add(ei.script);
+			ei.is_global = false;
+			AddScript(ei);
+		}
+		catch (const wchar_t *e) {
+			wxLogError(e);
+		}
+		catch (...) {
+			wxLogError(_T("Unknown error loading script"));
+		}
+	}
 }
 
 void DialogAutomation::OnRemove(wxCommandEvent &evt)

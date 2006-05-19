@@ -120,9 +120,6 @@ BEGIN_EVENT_TABLE(FrameMain, wxFrame)
 	EVT_MENU_RANGE(Menu_Audio_Recent,Menu_Audio_Recent+100, FrameMain::OnOpenRecentAudio)
 	EVT_MENU_RANGE(Menu_Automation_Macro,Menu_Automation_Macro+100, FrameMain::OnAutomationMacro)
 
-	EVT_MENU(Menu_File_Open, FrameMain::OnOpenProject)
-	EVT_MENU(Menu_File_Save, FrameMain::OnSaveProject)
-	EVT_MENU(Menu_File_SaveAs, FrameMain::OnSaveProjectAs)
 	EVT_MENU(Menu_File_Exit, FrameMain::OnExit)
 	EVT_MENU(Menu_File_Open_Video, FrameMain::OnOpenVideo)
 	EVT_MENU(Menu_File_Close_Video, FrameMain::OnCloseVideo)
@@ -377,7 +374,7 @@ void FrameMain::AddMacroMenuItems(wxMenu *menu, const std::vector<Automation4::F
 		return;
 	}
 
-	int id = 0;
+	int id = activeMacroItems.size();;
 	for (std::vector<Automation4::FeatureMacro*>::const_iterator i = macros.begin(); i != macros.end(); ++i) {
 		wxMenuItem * m = menu->Append(Menu_Automation_Macro + id, (*i)->GetName(), (*i)->GetDescription());
 		m->Enable((*i)->Validate(SubsBox->ass, SubsBox->GetAbsoluteSelection(), SubsBox->GetFirstSelRow()));
@@ -477,29 +474,6 @@ void FrameMain::OnIRCChannel(wxCommandEvent& WXUNUSED(event)) {
 		wxString command = type->GetOpenCommand(_T("irc://irc.chatsociety.net/aegisub"));
 		if (!command.empty()) wxExecute(command);
 	}
-}
-
-
-////////////////
-// Open project
-void FrameMain::OnOpenProject(wxCommandEvent& WXUNUSED(event)) {
-	// TODO
-	//wxString filename = wxFileSelector(_T("Open file"),_T(""),_T(""),_T(""),_T("Aegisub Project (*.vsa)|*.vsa|All Files (*.*)|*.*"),wxOPEN | wxFILE_MUST_EXIST);
-}
-
-
-////////////////
-// Save project
-void FrameMain::OnSaveProject(wxCommandEvent& WXUNUSED(event)) {
-	// TODO: Maybe? Perhaps autosave is better
-}
-
-
-///////////////////
-// Save project as
-void FrameMain::OnSaveProjectAs(wxCommandEvent& WXUNUSED(event)) {
-	// TODO: Read above note
-	wxString filename = wxFileSelector(_("Save file"),_T(""),_T(""),_T(""),_T("Aegisub Project (*.vsa)|*.vsa|All Files (*.*)|*.*"),wxSAVE | wxOVERWRITE_PROMPT);
 }
 
 
