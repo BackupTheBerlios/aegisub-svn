@@ -51,13 +51,17 @@ namespace Automation4 {
 		AssFile *ass;
 		lua_State *L;
 
+		bool can_modify;
+		bool can_set_undo;
+		void CheckAllowModify(); // throws an error if modification is disallowed
+
 		// keep a cursor of last accessed item to avoid walking over the entire file on every access
 		std::list<AssEntry*>::iterator last_entry_ptr;
 		int last_entry_id;
 		void GetAssEntry(int n); // set last_entry_ptr to point to item n
 
-		void AssEntryToLua(AssEntry *e); // makes a Lua representation of AssEntry and places on the top of the stack
-		AssEntry *LuaToAssEntry(); // assumes a Lua representation of AssEntry on the top of the stack, and creates an AssEntry object of it
+		static void AssEntryToLua(lua_State *L, AssEntry *e); // makes a Lua representation of AssEntry and places on the top of the stack
+		static AssEntry *LuaToAssEntry(lua_State *L); // assumes a Lua representation of AssEntry on the top of the stack, and creates an AssEntry object of it
 
 		static int ObjectIndexRead(lua_State *L);
 		static int ObjectIndexWrite(lua_State *L);
@@ -68,11 +72,16 @@ namespace Automation4 {
 		static int ObjectInsert(lua_State *L);
 		static int ObjectGarbageCollect(lua_State *L);
 
+		static int LuaParseTagData(lua_State *L);
+		static int LuaUnparseTagData(lua_State *L);
+		static int LuaParseKaraokeData(lua_State *L);
+		static int LuaSetUndoPoint(lua_State *L);
+
 		static LuaAssFile *GetObjPointer(lua_State *L, int idx);
 
 		~LuaAssFile();
 	public:
-		LuaAssFile(lua_State *_L, AssFile *_ass);
+		LuaAssFile(lua_State *_L, AssFile *_ass, bool _can_modify, bool _can_set_undo);
 	};
 
 	class LuaProgressSink : public ProgressSink {

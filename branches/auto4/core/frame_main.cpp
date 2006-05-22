@@ -735,11 +735,18 @@ void FrameMain::SynchronizeProject(bool fromSubs) {
 		wxString curSubsVFR = DecodeRelativePath(subs->GetScriptInfo(_T("VFR File")),AssFile::top->filename);
 		wxString curSubsAudio = DecodeRelativePath(subs->GetScriptInfo(_T("Audio File")),AssFile::top->filename);
 		wxString AutoScriptString = subs->GetScriptInfo(_T("Automation 4 Scripts"));
+		wxString Auto3ScriptString = subs->GetScriptInfo(_T("Automation Scripts"));
+
+		if (!Auto3ScriptString.IsEmpty()) {
+			if (wxMessageBox(_("This subtitle file refers to one or more Automation 3 scripts. Automation 3 is no longer supported, and as such, these scripts will not be loaded.\n\nDo you want to remove the reference to these scripts from the subtitle file?"), _("Deprecated references found"), wxYES_NO) == wxYES) {
+				subs->SetScriptInfo(_T("Automation Scripts"), _T(""));
+			}
+		}
 
 		// Check if there is anything to change
 		int autoLoadMode = Options.AsInt(_T("Autoload linked files"));
 		bool hasToLoad = false;
-		if (curSubsAudio != audioBox->audioName || curSubsVFR != VFR_Output.GetFilename() || curSubsVideo != videoBox->videoDisplay->videoName || !AutoScriptString.IsEmpty()) {
+		if (curSubsAudio != audioBox->audioName || curSubsVFR != VFR_Output.GetFilename() || curSubsVideo != videoBox->videoDisplay->videoName || !AutoScriptString.IsEmpty() || local_scripts->GetScripts().size() > 0) {
 			hasToLoad = true;
 		}
 
@@ -779,7 +786,7 @@ void FrameMain::SynchronizeProject(bool fromSubs) {
 			local_scripts->RemoveAll();
 			wxStringTokenizer tok(AutoScriptString, _T("|"), wxTOKEN_STRTOK);
 			wxFileName subsfn(subs->filename);
-			wxFileName autobasefn(Options.AsText(_T("Automation Base Path")), _T(""));
+			wxString autobasefn(Options.AsText(_T("Automation Base Path")));
 			while (tok.HasMoreTokens()) {
 				wxString sfnames = tok.GetNextToken().Trim(true).Trim(false);
 				wxString sfnamel = sfnames.Left(1);
@@ -788,22 +795,22 @@ void FrameMain::SynchronizeProject(bool fromSubs) {
 				if (sfnamel == _T("~")) {
 					basepath = subsfn.GetPath();
 				} else if (sfnamel == _T("$")) {
-					basepath = autobasefn.GetPath();
+					basepath = autobasefn;
 				} else if (sfnamel == _T("/")) {
 					basepath = _T("");
 				} else {
 					wxLogWarning(_T("Automation Script referenced with unknown location specifier character.\nLocation specifier found: %s\nFilename specified: %s"),
-						sfnamel, sfnames);
+						sfnamel.c_str(), sfnames.c_str());
 					continue;
 				}
 				wxFileName sfname(sfnames);
-				sfname.Normalize(wxPATH_NORM_ALL, basepath);
+				sfname.MakeAbsolute(basepath);
 				if (sfname.FileExists()) {
 					sfnames = sfname.GetFullPath();
 					local_scripts->Add(Automation4::ScriptFactory::CreateFromFile(sfnames));
 				} else {
 					wxLogWarning(_T("Automation Script referenced could not be found.\nFilename specified: %s%s\nSearched relative to: %s\nResolved filename: %s"),
-						sfnamel, sfnames, basepath, sfname.GetFullPath());
+						sfnamel.c_str(), sfnames.c_str(), basepath.c_str(), sfname.GetFullPath().c_str());
 				}
 			}
 		}
@@ -833,6 +840,39 @@ void FrameMain::SynchronizeProject(bool fromSubs) {
 		subs->SetScriptInfo(_T("Video Zoom"),zoom);
 		subs->SetScriptInfo(_T("Video Position"),seekpos);
 		subs->SetScriptInfo(_T("VFR File"),MakeRelativePath(VFR_Output.GetFilename(),AssFile::top->filename));
+
+		// Store Automation script data
+		// Algorithm:
+		// 1. If script filename has Automation Base Path as a prefix, the path is relative to that (ie. "$")
+		// 2. Otherwise try making it relative to the subs filename
+		// 3. If step 2 failed, or absolut path is shorter than path relative to subs, use absolute path ("/")
+		// 4. Otherwise, use path relative to subs ("~")
+		wxString scripts_string;
+		wxString autobasefn(Options.AsText(_T("Automation Base Path")));
+
+		const std::vector<Automation4::Script*> &scripts = local_scripts->GetScripts();
+		for (int i = 0; i < scripts.size(); i++) {
+			Automation4::Script *script = scripts[i];
+
+			if (i != 0)
+				scripts_string += _T("|");
+
+			wxString autobase_rel, subsfile_rel;
+			wxString scriptfn(script->GetFilename());
+			autobase_rel = MakeRelativePath(scriptfn, autobasefn);
+			subsfile_rel = MakeRelativePath(scriptfn, AssFile::top->filename);
+
+			if (autobase_rel.size() <= scriptfn.size() && autobase_rel.size() <= subsfile_rel.size()) {
+				scriptfn = _T("$") + autobase_rel;
+			} else if (subsfile_rel.size() <= scriptfn.size() && subsfile_rel.size() <= autobase_rel.size()) {
+				scriptfn = _T("~") + subsfile_rel;
+			} else {
+				scriptfn = _T("/") + wxFileName(scriptfn).GetFullPath(wxPATH_UNIX);
+			}
+
+			scripts_string += scriptfn;
+		}
+		subs->SetScriptInfo(_T("Automation 4 Scripts"), scripts_string);
 	}
 }
 

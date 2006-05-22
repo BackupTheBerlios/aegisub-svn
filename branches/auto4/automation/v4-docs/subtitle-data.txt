@@ -260,7 +260,7 @@ blocks and text, and give separate access to each tag in override blocks.
 function aegisub.parse_tag_data(text)
 
 @text (string)
-  The SSA format string to parse.
+  The SSA-format string to parse.
 
 Returns: A Parsed Tag Data table.
 
@@ -287,7 +287,7 @@ syllables with additional calculated information added.
 function aegisub.parse_karaoke_data(text)
 
 @text (string)
-  The SSA format string to parse.
+  The SSA-format string to parse.
 
 Returns: A Parsed Karaoke Data table.
 
@@ -366,7 +366,7 @@ This table contains information about a single karaoke syllable.
 
 duration (number)
   Duration of the syllable in milliseconds.
-  (In case of syllable zero, this is always zero.)
+  (In case of syllable zero, this is always zero. Also zero for "kt" tags.)
 
 start_time (number)
 end_time (number)
@@ -377,7 +377,7 @@ end_time (number)
 
 tag (string)
   The tag used for marking up this syllable. Usually one of:
-    "k", "K", "kf", "ko"
+    "k", "K", "kf", "ko", "kt"
   (In case of syllable zero, this is always the empty string.)
 
 text (string)

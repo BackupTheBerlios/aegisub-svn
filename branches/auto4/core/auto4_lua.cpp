@@ -37,6 +37,7 @@
 #include "ass_dialogue.h"
 #include "ass_style.h"
 #include "ass_file.h"
+#include "ass_override.h"
 #include <lualib.h>
 #include <lauxlib.h>
 #include <wx/msgdlg.h>
@@ -45,30 +46,47 @@
 
 namespace Automation4 {
 
-	class LuaStackcheck {
-	private:
+#ifdef _DEBUG
+	struct LuaStackcheck {
 		lua_State *L;
 		int startstack;
-	public:
 		void check(int additional)
 		{
 			int top = lua_gettop(L);
 			if (top - additional != startstack) {
-				wxLogDebug(_T("Lua stack size mismatch. Dumping..."));
-				for (int i = top; i > 0; i--) {
-					wxString type(lua_typename(L, lua_type(L, i)), wxConvUTF8);
-					if (lua_isstring(L, i)) {
-						wxLogDebug(type + _T(": ") + wxString(lua_tostring(L, i), wxConvUTF8));
-					} else {
-						wxLogDebug(type);
-					}
-				}
+				wxLogDebug(_T("Lua stack size mismatch."));
+				dump();
 				assert(top - additional == startstack);
 			}
+		}
+		void dump()
+		{
+			int top = lua_gettop(L);
+			wxLogDebug(_T("Dumping Lua stack..."));
+			for (int i = top; i > 0; i--) {
+				lua_pushvalue(L, i);
+				wxString type(lua_typename(L, lua_type(L, -1)), wxConvUTF8);
+				if (lua_isstring(L, i)) {
+					wxLogDebug(type + _T(": ") + wxString(lua_tostring(L, -1), wxConvUTF8));
+				} else {
+					wxLogDebug(type);
+				}
+				lua_pop(L, 1);
+			}
+			wxLogDebug(_T("--- end dump"));
 		}
 		LuaStackcheck(lua_State *_L) : L(_L) { startstack = lua_gettop(L); }
 		~LuaStackcheck() { check(0); }
 	};
+#else
+	struct LuaStackcheck {
+		void check(int additional) { }
+		void dump() { }
+		LuaStackcheck(lua_State *L) { }
+		~LuaStackcheck() { }
+	};
+#endif
+
 
 	int lua_callable_showmessage(lua_State *L)
 	{
@@ -79,19 +97,16 @@ namespace Automation4 {
 		return 0;
 	}
 
-	int lua_callable_set_undo_point(lua_State *L)
+
+	void LuaAssFile::CheckAllowModify()
 	{
-		wxString description;
-		if (lua_isstring(L, 1)) {
-			description = wxString(lua_tostring(L, 1), wxConvUTF8);
-			lua_pop(L, 1);
-		}
-		AssFile::FlagAsModified(description);
-		return 0;
+		if (can_modify)
+			return;
+		lua_pushstring(L, "Attempt to modify subtitles in feature where disallowed.");
+		lua_error(L);
 	}
 
-
-	void LuaAssFile::AssEntryToLua(AssEntry *e)
+	void LuaAssFile::AssEntryToLua(lua_State *L, AssEntry *e)
 	{
 		lua_newtable(L);
 
@@ -254,7 +269,7 @@ namespace Automation4 {
 		lua_setfield(L, -2, "class");
 	}
 
-	AssEntry *LuaAssFile::LuaToAssEntry()
+	AssEntry *LuaAssFile::LuaToAssEntry(lua_State *L)
 	{
 		// assume an assentry table is on the top of the stack
 		// convert it to a real AssEntry object, and pop the table from the stack
@@ -444,7 +459,7 @@ namespace Automation4 {
 #undef GETINT
 #undef GETBOOL
 
-		lua_pop(L, 1);
+		//lua_pop(L, 1); // the function shouldn't eat the table it converted
 		return result;
 	}
 
@@ -500,7 +515,7 @@ namespace Automation4 {
 					}
 
 					laf->GetAssEntry(reqid-1);
-					laf->AssEntryToLua(*laf->last_entry_ptr);
+					laf->AssEntryToLua(L, *laf->last_entry_ptr);
 					return 1;
 				}
 
@@ -568,26 +583,40 @@ namespace Automation4 {
 			lua_error(L);
 			return 0;
 		}
+
+		LuaAssFile *laf = GetObjPointer(L, 1);
+		laf->CheckAllowModify();
+
+		LuaStackcheck _stack(L);
 		
 		int n = lua_tointeger(L, 2);
 
 		if (n < 0) {
 			// insert line so new index is n
+			lua_pushvalue(L, 1);
+			lua_pushcclosure(L, ObjectInsert, 1);
 			lua_pushinteger(L, -n);
-			lua_replace(L, 2);
-			return ObjectInsert(L);
+			lua_pushvalue(L, 3);
+			_stack.dump();
+			lua_call(L, 2, 0);
+			_stack.check(0);
+			return 0;
 
 		} else if (n == 0) {
 			// append line to list
-			lua_remove(L, 2);
-			return ObjectAppend(L);
+			lua_pushvalue(L, 1);
+			lua_pushcclosure(L, ObjectAppend, 1);
+			lua_pushvalue(L, 3);
+			_stack.dump();
+			lua_call(L, 1, 0);
+			_stack.check(0);
+			return 0;
 
 		} else {
 			// replace line at index n or delete
 			if (!lua_isnil(L, 3)) {
 				// insert
-				LuaAssFile *laf = GetObjPointer(L, 1);
-				AssEntry *e = laf->LuaToAssEntry();
+				AssEntry *e = LuaToAssEntry(L);
 				laf->GetAssEntry(n-1);
 				delete *laf->last_entry_ptr;
 				*laf->last_entry_ptr = e;
@@ -595,8 +624,13 @@ namespace Automation4 {
 
 			} else {
 				// delete
-				lua_settop(L, 2); // make sure there's only two items on stack, laf and id
-				return ObjectDelete(L);
+				lua_pushvalue(L, 1);
+				lua_pushcclosure(L, ObjectDelete, 1);
+				lua_pushvalue(L, 2);
+				_stack.dump();
+				lua_call(L, 1, 0);
+				_stack.check(0);
+				return 0;
 
 			}
 		}
@@ -611,16 +645,18 @@ namespace Automation4 {
 
 	int LuaAssFile::ObjectDelete(lua_State *L)
 	{
-		LuaAssFile *laf = GetObjPointer(L, 1);
+		LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
 
+		laf->CheckAllowModify();
+		
 		// get number of items to delete
 		int itemcount = lua_gettop(L);
 		std::vector<int> ids;
-		ids.reserve(itemcount-1);
+		ids.reserve(itemcount);
 
 		// the the item id's and sort them, so we can delete from last to first,
 		// to preserve original numbering
-		while (itemcount > 1) {
+		while (itemcount > 0) {
 			if (!lua_isnumber(L, itemcount)) {
 				lua_pushstring(L, "Attempt to delete non-numeric line id from Subtitle Object");
 				lua_error(L);
@@ -657,15 +693,17 @@ namespace Automation4 {
 
 	int LuaAssFile::ObjectDeleteRange(lua_State *L)
 	{
-		LuaAssFile *laf = GetObjPointer(L, 1);
+		LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
 
-		if (!lua_isnumber(L, 2) || !lua_isnumber(L, 3)) {
+		laf->CheckAllowModify();
+		
+		if (!lua_isnumber(L, 1) || !lua_isnumber(L, 2)) {
 			lua_pushstring(L, "Non-numeric argument given to deleterange");
 			lua_error(L);
 			return 0;
 		}
 
-		int a = lua_tointeger(L, 2), b = lua_tointeger(L, 3);
+		int a = lua_tointeger(L, 1), b = lua_tointeger(L, 2);
 
 		if (a < 1) a = 1;
 		if (b > laf->ass->Line.size()) b = laf->ass->Line.size();
@@ -694,8 +732,10 @@ namespace Automation4 {
 
 	int LuaAssFile::ObjectAppend(lua_State *L)
 	{
-		LuaAssFile *laf = GetObjPointer(L, 1);
+		LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
 
+		laf->CheckAllowModify();
+		
 		int n = lua_gettop(L);
 
 		if (laf->last_entry_ptr != laf->ass->Line.begin()) {
@@ -703,9 +743,9 @@ namespace Automation4 {
 			laf->last_entry_id--;
 		}
 
-		for (int i = 2; i <= n; i++) {
+		for (int i = 1; i <= n; i++) {
 			lua_pushvalue(L, i);
-			AssEntry *e = laf->LuaToAssEntry();
+			AssEntry *e = LuaToAssEntry(L);
 			laf->ass->Line.push_back(e);
 		}
 
@@ -714,9 +754,13 @@ namespace Automation4 {
 
 	int LuaAssFile::ObjectInsert(lua_State *L)
 	{
-		LuaAssFile *laf = GetObjPointer(L, 1);
+		LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
+		LuaStackcheck _stack(L);
+		_stack.dump();
 
-		if (!lua_isnumber(L, 2)) {
+		laf->CheckAllowModify();
+		
+		if (!lua_isnumber(L, 1)) {
 			lua_pushstring(L, "Can't insert at non-numeric index");
 			lua_error(L);
 			return 0;
@@ -724,14 +768,17 @@ namespace Automation4 {
 
 		int n = lua_gettop(L);
 
-		laf->GetAssEntry(lua_tonumber(L, 2)-1);
+		laf->GetAssEntry(lua_tonumber(L, 1)-1);
 
-		for (int i = 3; i <= n; i++) {
+		for (int i = 2; i <= n; i++) {
 			lua_pushvalue(L, i);
-			AssEntry *e = laf->LuaToAssEntry();
+			AssEntry *e = LuaToAssEntry(L);
+			lua_pop(L, 1);
 			laf->ass->Line.insert(laf->last_entry_ptr, e);
 			laf->last_entry_id++;
 		}
+
+		_stack.check(0);
 
 		return 0;
 	}
@@ -744,8 +791,178 @@ namespace Automation4 {
 		return 0;
 	}
 
+	int LuaAssFile::LuaParseTagData(lua_State *L)
+	{
+		//LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
+		lua_newtable(L);
+		// TODO
+		return 1;
+	}
+
+	int LuaAssFile::LuaUnparseTagData(lua_State *L)
+	{
+		//LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
+		lua_pushstring(L, "");
+		// TODO
+		return 1;
+	}
+
+	int LuaAssFile::LuaParseKaraokeData(lua_State *L)
+	{
+		//LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
+		AssEntry *e = LuaToAssEntry(L);
+		if (e->GetType() != ENTRY_DIALOGUE) {
+			delete e;
+			lua_pushstring(L, "Attempt to create karaoke table from non-dialogue subtitle line");
+			lua_error(L);
+			return 0;
+		}
+
+		AssDialogue *dia = e->GetAsDialogue(e);
+		dia->ParseASSTags();
+
+		int kcount = 0;
+		int kdur = 0;
+		int ktime = 0;
+		wxString ktag = _T("");
+		wxString ktext = _T("");
+		wxString ktext_stripped = _T("");
+
+		lua_newtable(L);
+		LuaStackcheck _stackcheck(L);
+
+		for (int i = 0; i < dia->Blocks.size(); i++) {
+			AssDialogueBlock *block = dia->Blocks[i];
+
+			switch (block->type) {
+
+				case BLOCK_BASE:
+					assert(block->type != BLOCK_BASE);
+					break;
+
+				case BLOCK_PLAIN:
+					ktext += block->text;
+					ktext_stripped += block->text;
+					break;
+
+				case BLOCK_DRAWING:
+					// a drawing is regarded as a kind of control code here, so it's just stripped away
+					ktext += block->text;
+					break;
+
+				case BLOCK_OVERRIDE: {
+					bool brackets_open = false;
+					AssDialogueBlockOverride *ovr = block->GetAsOverride(block);
+
+					for (int j = 0; j < ovr->Tags.size(); j++) {
+						AssOverrideTag *tag = ovr->Tags[j];
+
+						if (tag->IsValid() && tag->Name.Mid(0,2).CmpNoCase(_T("\\k")) == 0) {
+							// karaoke tag
+							if (brackets_open) {
+								ktext += _T("}");
+								brackets_open = false;
+							}
+
+							// store to lua
+							lua_newtable(L);
+							lua_pushnumber(L, kdur);
+							lua_setfield(L, -2, "duration");
+							lua_pushnumber(L, ktime);
+							lua_setfield(L, -2, "start_time");
+							lua_pushnumber(L, ktime+kdur);
+							lua_setfield(L, -2, "end_time");
+							lua_pushstring(L, ktag.mb_str(wxConvUTF8));
+							lua_setfield(L, -2, "tag");
+							lua_pushstring(L, ktext.mb_str(wxConvUTF8));
+							lua_setfield(L, -2, "text");
+							lua_pushstring(L, ktext_stripped.mb_str(wxConvUTF8));
+							lua_setfield(L, -2, "text_stripped");
+							lua_rawseti(L, -2, kcount);
+							_stackcheck.check(0);
+
+							// prepare new syllable
+							kcount++;
+							ktag = tag->Name.Mid(1);
+							// check if it's a "set time" tag, special handling for that (depends on previous syllable duration)
+							if (ktag == _T("kt")) {
+								ktime = tag->Params[0]->AsInt() * 10;
+								kdur = 0;
+							} else {
+								ktime += kdur; // duration of previous syllable
+								kdur = tag->Params[0]->AsInt() * 10;
+							}
+							ktext.clear();
+							ktext_stripped.clear();
+
+						} else {
+							// not karaoke tag
+							if (!brackets_open) {
+								ktext += _T("{");
+								brackets_open = true;
+							}
+							ktext += tag->ToString();
+						}
+
+					}
+
+					if (brackets_open) {
+						ktext += _T("}");
+						brackets_open = false;
+					}
+
+					break;}
+
+			}
+
+		}
+
+		dia->ClearBlocks();
+
+		// store final syllable/block to lua
+		lua_newtable(L);
+		lua_pushnumber(L, kdur);
+		lua_setfield(L, -2, "duration");
+		lua_pushnumber(L, ktime);
+		lua_setfield(L, -2, "start_time");
+		lua_pushnumber(L, ktime+kdur);
+		lua_setfield(L, -2, "end_time");
+		lua_pushstring(L, ktag.mb_str(wxConvUTF8));
+		lua_setfield(L, -2, "tag");
+		lua_pushstring(L, ktext.mb_str(wxConvUTF8));
+		lua_setfield(L, -2, "text");
+		lua_pushstring(L, ktext_stripped.mb_str(wxConvUTF8));
+		lua_setfield(L, -2, "text_stripped");
+		lua_rawseti(L, -2, kcount);
+		_stackcheck.check(0);
+
+		delete dia;
+		return 1;
+	}
+
+	int LuaAssFile::LuaSetUndoPoint(lua_State *L)
+	{
+		LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
+		if (!laf->can_set_undo) {
+			lua_pushstring(L, "Attempt to set an undo point while not allowed.");
+			lua_error(L);
+			return 0;
+		}
+
+		wxString description;
+		if (lua_isstring(L, 1)) {
+			description = wxString(lua_tostring(L, 1), wxConvUTF8);
+			lua_pop(L, 1);
+		}
+		AssFile::FlagAsModified(description);
+
+		laf->ass = AssFile::top; // make sure we're still working on the most recent undo point
+		return 0;
+	}
+
 	LuaAssFile *LuaAssFile::GetObjPointer(lua_State *L, int idx)
 	{
+		assert(lua_type(L, idx) == LUA_TUSERDATA);
 		void *ud = lua_touserdata(L, idx);
 		return *((LuaAssFile**)ud);
 	}
@@ -754,9 +971,11 @@ namespace Automation4 {
 	{
 	}
 
-	LuaAssFile::LuaAssFile(lua_State *_L, AssFile *_ass)
+	LuaAssFile::LuaAssFile(lua_State *_L, AssFile *_ass, bool _can_modify, bool _can_set_undo)
 		: ass(_ass)
 		, L(_L)
+		, can_modify(_can_modify)
+		, can_set_undo(_can_set_undo)
 	{
 		// prepare cursor
 		last_entry_ptr = ass->Line.begin();
@@ -777,6 +996,27 @@ namespace Automation4 {
 		lua_pushcfunction(L, ObjectGarbageCollect);
 		lua_setfield(L, -2, "__gc");
 		lua_setmetatable(L, -2);
+
+		// register misc functions
+		// assume the "aegisub" global table exists
+		lua_getglobal(L, "aegisub");
+		assert(lua_type(L, -2) == LUA_TUSERDATA);
+		lua_pushvalue(L, -2); // the userdata object
+		lua_pushcclosure(L, LuaParseTagData, 1);
+		lua_setfield(L, -2, "parse_tag_data");
+		assert(lua_type(L, -2) == LUA_TUSERDATA);
+		lua_pushvalue(L, -2);
+		lua_pushcclosure(L, LuaUnparseTagData, 1);
+		lua_setfield(L, -2, "unparse_tag_data");
+		assert(lua_type(L, -2) == LUA_TUSERDATA);
+		lua_pushvalue(L, -2);
+		lua_pushcclosure(L, LuaParseKaraokeData, 1);
+		lua_setfield(L, -2, "parse_karaoke_data");
+		assert(lua_type(L, -2) == LUA_TUSERDATA);
+		lua_pushvalue(L, -2);
+		lua_pushcclosure(L, LuaSetUndoPoint, 1);
+		lua_setfield(L, -2, "set_undo_point");
+		lua_pop(L, 1);
 	}
 
 
@@ -838,8 +1078,6 @@ namespace Automation4 {
 			lua_newtable(L);
 			lua_pushcfunction(L, LuaFeatureMacro::LuaRegister);
 			lua_setfield(L, -2, "register_macro");
-			lua_pushcfunction(L, lua_callable_set_undo_point);
-			lua_setfield(L, -2, "set_undo_point");
 			lua_settable(L, LUA_GLOBALSINDEX);
 			_stackcheck.check(0);
 
@@ -1054,7 +1292,7 @@ namespace Automation4 {
 		wxLogDebug(_T("Got function"));
 
 		// prepare function call
-		LuaAssFile *subsobj = new LuaAssFile(L, subs); // subs object
+		LuaAssFile *subsobj = new LuaAssFile(L, subs, false, false);
 		CreateIntegerArray(selected); // selected items
 		lua_pushinteger(L, -1); // active line
 		wxLogDebug(_T("Prepared parameters"));
@@ -1087,7 +1325,7 @@ namespace Automation4 {
 		_stackcheck.check(1);
 
 		// prepare function call
-		LuaAssFile *subsobj = new LuaAssFile(L, subs); // subs object
+		LuaAssFile *subsobj = new LuaAssFile(L, subs, true, true);
 		CreateIntegerArray(selected); // selected items
 		lua_pushinteger(L, -1); // active line
 		wxLogDebug(_T("Prepared parameters"));

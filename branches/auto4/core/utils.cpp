@@ -98,7 +98,7 @@ wxString MakeRelativePath(wxString _path,wxString reference) {
 	wxFileName path(_path);
 	wxFileName refPath(reference);
 	path.MakeRelativeTo(refPath.GetPath());
-	return path.GetFullPath();
+	return path.GetFullPath(wxPATH_UNIX); // also works on windows
 }
 
 
