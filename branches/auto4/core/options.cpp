@@ -215,6 +215,7 @@ void OptionsManager::LoadDefaults() {
 	SetText(_T("Automation Base Path"), AegisubApp::folderName + _T("automation/"));
 	SetText(_T("Automation Include Path"), AegisubApp::folderName + _T("automation/include/"));
 	SetText(_T("Automation Autoload Path"), AegisubApp::folderName + _T("automation/autoload/"));
+	SetInt(_T("Automation Trace Level"), 3);
 
 	SetText(_T("Select Text"),_T(""));
 	SetInt(_T("Select Condition"),0);

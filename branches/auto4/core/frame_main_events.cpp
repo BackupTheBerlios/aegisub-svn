@@ -1269,7 +1269,7 @@ void FrameMain::OnAutomationManager (wxCommandEvent &event) {
 // General handler for all Automation-generated menu items
 void FrameMain::OnAutomationMacro (wxCommandEvent &event) {
 	AssFile *oldtop = AssFile::top;
-	activeMacroItems[event.GetId()-Menu_Automation_Macro]->Process(SubsBox->ass, SubsBox->GetAbsoluteSelection(), SubsBox->GetFirstSelRow());
+	activeMacroItems[event.GetId()-Menu_Automation_Macro]->Process(SubsBox->ass, SubsBox->GetAbsoluteSelection(), SubsBox->GetFirstSelRow(), this);
 	// check if modifications were made and put on undo stack
 	SubsBox->LoadFromAss(AssFile::top, true, true);
 }

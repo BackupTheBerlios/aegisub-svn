@@ -95,7 +95,10 @@ namespace Automation4 {
 		static int LuaDebugOut(lua_State *L);
 
 	public:
-		LuaProgressSink(lua_State *L);
+		LuaProgressSink(lua_State *_L, wxWindow *parent);
+		virtual ~LuaProgressSink();
+
+		static LuaProgressSink* GetObjPointer(lua_State *L, int idx);
 	};
 
 	class LuaFeature : public virtual Feature {
@@ -133,7 +136,6 @@ namespace Automation4 {
 	class LuaThreadedCall : public wxThread {
 	private:
 		lua_State *L;
-		wxEvtHandler *evthandler;
 		int nargs;
 		int nresults;
 	public:
@@ -151,7 +153,7 @@ namespace Automation4 {
 		virtual ~LuaFeatureMacro() { }
 
 		virtual bool Validate(AssFile *subs, std::vector<int> &selected, int active);
-		virtual void Process(AssFile *subs, std::vector<int> &selected, int active);
+		virtual void Process(AssFile *subs, std::vector<int> &selected, int active, wxWindow *progress_parent);
 	};
 
 };

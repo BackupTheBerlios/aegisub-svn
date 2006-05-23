@@ -793,7 +793,6 @@ namespace Automation4 {
 
 	int LuaAssFile::LuaParseTagData(lua_State *L)
 	{
-		//LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
 		lua_newtable(L);
 		// TODO
 		return 1;
@@ -801,7 +800,6 @@ namespace Automation4 {
 
 	int LuaAssFile::LuaUnparseTagData(lua_State *L)
 	{
-		//LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
 		lua_pushstring(L, "");
 		// TODO
 		return 1;
@@ -809,7 +807,6 @@ namespace Automation4 {
 
 	int LuaAssFile::LuaParseKaraokeData(lua_State *L)
 	{
-		//LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
 		AssEntry *e = LuaToAssEntry(L);
 		if (e->GetType() != ENTRY_DIALOGUE) {
 			delete e;
@@ -1169,9 +1166,17 @@ namespace Automation4 {
 
 	wxThread::ExitCode LuaThreadedCall::Entry()
 	{
-		// TODO: progress window support should probably be done partially here
-		// ie. take argument for the event handler used to comm. to progress window and install in progresssink as needed
 		int result = lua_pcall(L, nargs, nresults, 0);
+
+		// see if there's a progress sink window to close
+		lua_getfield(L, LUA_REGISTRYINDEX, "progress_sink");
+		if (lua_isuserdata(L, -1)) {
+			LuaProgressSink *ps = LuaProgressSink::GetObjPointer(L, -1);
+			wxMutexGuiLocker gui;
+			ps->EndModal(0);
+		}
+		lua_pop(L, 1);
+
 		lua_gc(L, LUA_GCCOLLECT, 0);
 		return (wxThread::ExitCode)result;
 	}
@@ -1314,7 +1319,7 @@ namespace Automation4 {
 		return result;
 	}
 
-	void LuaFeatureMacro::Process(AssFile *subs, std::vector<int> &selected, int active)
+	void LuaFeatureMacro::Process(AssFile *subs, std::vector<int> &selected, int active, wxWindow *progress_parent)
 	{
 		LuaStackcheck _stackcheck(L);
 
@@ -1329,16 +1334,123 @@ namespace Automation4 {
 		CreateIntegerArray(selected); // selected items
 		lua_pushinteger(L, -1); // active line
 		wxLogDebug(_T("Prepared parameters"));
+
+		LuaProgressSink *ps = new LuaProgressSink(L, progress_parent);
+		ps->SetTitle(GetName());
+
 		// do call
 		LuaThreadedCall call(L, 3, 0);
+
+		ps->ShowModal();
 		wxLogDebug(_T("Waiting for call to finish"));
 		wxThread::ExitCode code = call.Wait();
 		wxLogDebug(_T("Exit code was %d"), (int)code);
 		if (code) ThrowError();
 
+		delete ps;
+
 		// stack should be empty now
 		_stackcheck.check(0);
 		wxLogDebug(_T("Finished processing"));
+	}
+
+
+	LuaProgressSink::LuaProgressSink(lua_State *_L, wxWindow *parent)
+		: ProgressSink(parent)
+		, L(_L)
+	{
+		LuaProgressSink **ud = (LuaProgressSink**)lua_newuserdata(L, sizeof(LuaProgressSink*));
+		*ud = this;
+
+		// register progress reporting stuff
+		lua_getglobal(L, "aegisub");
+		lua_newtable(L);
+
+		lua_pushvalue(L, -3);
+		lua_pushcclosure(L, LuaSetProgress, 1);
+		lua_setfield(L, -2, "set");
+
+		lua_pushvalue(L, -3);
+		lua_pushcclosure(L, LuaSetTask, 1);
+		lua_setfield(L, -2, "task");
+
+		lua_pushvalue(L, -3);
+		lua_pushcclosure(L, LuaSetTitle, 1);
+		lua_setfield(L, -2, "title");
+
+		lua_pushvalue(L, -3);
+		lua_pushcclosure(L, LuaGetCancelled, 1);
+		lua_setfield(L, -2, "is_cancelled");
+
+		lua_setfield(L, -2, "progress");
+
+		lua_newtable(L);
+		lua_pushvalue(L, -3);
+		lua_pushcclosure(L, LuaDebugOut, 1);
+		lua_setfield(L, -2, "out");
+		lua_setfield(L, -2, "debug");
+
+		// reference so other objects can also find the progress sink
+		lua_pushvalue(L, -2);
+		lua_setfield(L, LUA_REGISTRYINDEX, "progress_sink");
+
+		lua_pop(L, 2);
+	}
+
+	LuaProgressSink::~LuaProgressSink()
+	{
+		// remove progress reporting stuff
+		lua_getglobal(L, "aegisub");
+		lua_pushnil(L);
+		lua_setfield(L, -2, "progress");
+		lua_pushnil(L);
+		lua_setfield(L, -2, "debug");
+		lua_pop(L, 1);
+		lua_pushnil(L);
+		lua_setfield(L, LUA_REGISTRYINDEX, "progress_sink");
+	}
+
+	LuaProgressSink* LuaProgressSink::GetObjPointer(lua_State *L, int idx)
+	{
+		assert(lua_type(L, idx) == LUA_TUSERDATA);
+		void *ud = lua_touserdata(L, idx);
+		return *((LuaProgressSink**)ud);
+	}
+
+	int LuaProgressSink::LuaSetProgress(lua_State *L)
+	{
+		LuaProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
+		float progress = lua_tonumber(L, 1);
+		ps->SetProgress(progress);
+		return 0;
+	}
+
+	int LuaProgressSink::LuaSetTask(lua_State *L)
+	{
+		LuaProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
+		wxString task(lua_tostring(L, 1), wxConvUTF8);
+		ps->SetTask(task);
+		return 0;
+	}
+
+	int LuaProgressSink::LuaSetTitle(lua_State *L)
+	{
+		LuaProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
+		wxString title(lua_tostring(L, 1), wxConvUTF8);
+		ps->SetTitle(title);
+		return 0;
+	}
+
+	int LuaProgressSink::LuaGetCancelled(lua_State *L)
+	{
+		LuaProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
+		lua_pushboolean(L, ps->cancelled);
+		return 1;
+	}
+
+	int LuaProgressSink::LuaDebugOut(lua_State *L)
+	{
+		return 0;
 	}
 
 

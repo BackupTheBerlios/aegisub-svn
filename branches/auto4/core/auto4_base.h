@@ -39,13 +39,14 @@
 #define AUTO4_CORE_H
 
 #include <wx/string.h>
-#include <wx/event.h>
 #include <vector>
 
 #include "ass_export_filter.h"
 #include "subtitle_format.h"
 
 class AssFile;
+class wxWindow;
+class wxDialog;
 
 
 DECLARE_EVENT_TYPE(wxEVT_AUTOMATION_SCRIPT_COMPLETED, -1)
@@ -116,7 +117,7 @@ namespace Automation4 {
 		MacroMenu GetMenu() const;
 
 		virtual bool Validate(AssFile *subs, std::vector<int> &selected, int active) = 0;
-		virtual void Process(AssFile *subs, std::vector<int> &selected, int active) = 0;
+		virtual void Process(AssFile *subs, std::vector<int> &selected, int active, wxWindow *progress_parent) = 0;
 	};
 
 
@@ -161,21 +162,27 @@ namespace Automation4 {
 
 
 	// Base class for progress reporting/other output
-	class ProgressSink {
-	private: 
-		wxEvtHandler *handler;
+	class ProgressSink : public wxDialog {
+	private:
+		wxGauge *progress_display;
+		wxButton *cancel_button;
+		wxStaticText *title_display;
+		wxStaticText *task_display;
+
+		void OnCancel(wxCommandEvent &evt);
 
 	protected:
 		volatile bool cancelled;
-		float progress;
-		wxString task;
-		wxString title;
+
+		ProgressSink(wxWindow *parent);
+		virtual ~ProgressSink();
 
 	public:
 		void SetProgress(float _progress);
 		void SetTask(const wxString &_task);
-		void SetTitle(const wxString *_title);
-		void SetEvtHandler(wxEvtHandler *_handler);
+		void SetTitle(const wxString &_title);
+
+		DECLARE_EVENT_TABLE()
 	};
 
 

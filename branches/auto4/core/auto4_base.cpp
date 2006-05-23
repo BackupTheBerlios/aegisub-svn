@@ -36,6 +36,12 @@
 #include "auto4_base.h"
 #include <wx/filename.h>
 #include <wx/dir.h>
+#include <wx/dialog.h>
+#include <wx/gauge.h>
+#include <wx/button.h>
+#include <wx/stattext.h>
+#include <wx/thread.h>
+#include <wx/sizer.h>
 
 namespace Automation4 {
 
@@ -135,6 +141,82 @@ namespace Automation4 {
 	bool FeatureSubtitleFormat::CanReadFile(wxString filename)
 	{
 		return !filename.Right(extension.Length()).CmpNoCase(extension);
+	}
+
+
+	// ProgressSink
+
+	ProgressSink::ProgressSink(wxWindow *parent)
+		: wxDialog(parent, -1, _T("Automation"), wxDefaultPosition, wxDefaultSize, 0)
+		, cancelled(false)
+	{
+		// make the controls
+		progress_display = new wxGauge(this, -1, 1000, wxDefaultPosition, wxSize(200, 20));
+		title_display = new wxStaticText(this, -1, _T(""), wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE|wxST_NO_AUTORESIZE);
+		task_display = new wxStaticText(this, -1, _T(""), wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE|wxST_NO_AUTORESIZE);
+		cancel_button = new wxButton(this, wxID_CANCEL);
+
+		// put it in a sizer
+		// FIXME: needs borders etc
+		wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
+		sizer->Add(title_display, 0);
+		sizer->Add(progress_display, 0);
+		sizer->Add(task_display, 0);
+		sizer->Add(cancel_button, 0);
+
+		// make the title a slightly larger font
+		wxFont title_font = title_display->GetFont();
+		int fontsize = title_font.GetPointSize();
+		title_font.SetPointSize(fontsize + fontsize >> 3);
+		title_display->SetFont(title_font);
+
+		sizer->SetSizeHints(this);
+		SetSizer(sizer);
+		Center();
+	}
+
+	ProgressSink::~ProgressSink()
+	{
+	}
+
+	void ProgressSink::SetProgress(float _progress)
+	{
+		if (wxThread::IsMain()) {
+			progress_display->SetValue((int)(_progress*10));
+		} else {
+			wxMutexGuiLocker gui;
+			progress_display->SetValue((int)(_progress*10));
+		}
+	}
+
+	void ProgressSink::SetTask(const wxString &_task)
+	{
+		if (wxThread::IsMain()) {
+			task_display->SetLabel(_task);
+		} else {
+			wxMutexGuiLocker gui;
+			task_display->SetLabel(_task);
+		}
+	}
+
+	void ProgressSink::SetTitle(const wxString &_title)
+	{
+		if (wxThread::IsMain()) {
+			title_display->SetLabel(_title);
+		} else {
+			wxMutexGuiLocker gui;
+			title_display->SetLabel(_title);
+		}
+	}
+
+	BEGIN_EVENT_TABLE(ProgressSink, wxWindow)
+		EVT_BUTTON(wxID_CANCEL, ProgressSink::OnCancel)
+	END_EVENT_TABLE()
+
+	void ProgressSink::OnCancel(wxCommandEvent &evt)
+	{
+		cancelled = true;
+		cancel_button->Enable(false);
 	}
 
 
