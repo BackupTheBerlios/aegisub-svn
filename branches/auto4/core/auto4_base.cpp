@@ -147,8 +147,9 @@ namespace Automation4 {
 	// ProgressSink
 
 	ProgressSink::ProgressSink(wxWindow *parent)
-		: wxDialog(parent, -1, _T("Automation"), wxDefaultPosition, wxDefaultSize, 0)
+		: wxDialog(parent, -1, _T("Automation"), wxDefaultPosition, wxDefaultSize, wxDOUBLE_BORDER)
 		, cancelled(false)
+		, has_inited(false)
 	{
 		// make the controls
 		progress_display = new wxGauge(this, -1, 1000, wxDefaultPosition, wxSize(200, 20));
@@ -159,15 +160,16 @@ namespace Automation4 {
 		// put it in a sizer
 		// FIXME: needs borders etc
 		wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
-		sizer->Add(title_display, 0);
-		sizer->Add(progress_display, 0);
-		sizer->Add(task_display, 0);
-		sizer->Add(cancel_button, 0);
+		sizer->Add(title_display, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+		sizer->Add(progress_display, 0, wxALL&~wxTOP, 5);
+		sizer->Add(task_display, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+		sizer->Add(cancel_button, 0, wxALIGN_CENTER | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 
 		// make the title a slightly larger font
 		wxFont title_font = title_display->GetFont();
 		int fontsize = title_font.GetPointSize();
-		title_font.SetPointSize(fontsize + fontsize >> 3);
+		title_font.SetPointSize(fontsize + fontsize/4 + fontsize/8);
+		title_font.SetWeight(wxFONTWEIGHT_BOLD);
 		title_display->SetFont(title_font);
 
 		sizer->SetSizeHints(this);
@@ -210,8 +212,14 @@ namespace Automation4 {
 	}
 
 	BEGIN_EVENT_TABLE(ProgressSink, wxWindow)
+		EVT_INIT_DIALOG(ProgressSink::OnInit)
 		EVT_BUTTON(wxID_CANCEL, ProgressSink::OnCancel)
 	END_EVENT_TABLE()
+
+	void ProgressSink::OnInit(wxInitDialogEvent &evt)
+	{
+		has_inited = true;
+	}
 
 	void ProgressSink::OnCancel(wxCommandEvent &evt)
 	{

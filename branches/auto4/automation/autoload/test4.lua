@@ -18,7 +18,7 @@ end
 function progression(subtitles, selected_lines, active_line)
 	while not aegisub.progress.is_cancelled() do
 		aegisub.progress.task("Counting up...")
-		for i = 0, 100 do
+		for i = 0, 100, 0.2 do
 			aegisub.progress.set(i)
 			if aegisub.progress.is_cancelled() then
 				break
@@ -29,7 +29,7 @@ function progression(subtitles, selected_lines, active_line)
 			break
 		end
 		aegisub.progress.task("Counting down...")
-		for i = 0, 100, 0.1 do
+		for i = 0, 100 do
 			aegisub.progress.set(100-i)
 			wait()
 		end

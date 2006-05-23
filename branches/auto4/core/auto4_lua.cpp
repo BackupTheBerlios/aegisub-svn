@@ -90,10 +90,12 @@ namespace Automation4 {
 
 	int lua_callable_showmessage(lua_State *L)
 	{
+		/*
 		wxString msg(lua_tostring(L, 1), wxConvUTF8);
 		wxMutexGuiLocker gui;
 		wxMessageBox(msg);
 		lua_pop(L, 1);
+		*/
 		return 0;
 	}
 
@@ -1169,9 +1171,13 @@ namespace Automation4 {
 		int result = lua_pcall(L, nargs, nresults, 0);
 
 		// see if there's a progress sink window to close
+		// FIXME! POSSIBLE RACE CONDITION!
+		// if this code is called before the progress sink is shown modal the program hangs!
+		// the while loop below should solve this, but someone needs to review this (and test it)
 		lua_getfield(L, LUA_REGISTRYINDEX, "progress_sink");
 		if (lua_isuserdata(L, -1)) {
 			LuaProgressSink *ps = LuaProgressSink::GetObjPointer(L, -1);
+			while (!ps->has_inited);
 			wxMutexGuiLocker gui;
 			ps->EndModal(0);
 		}

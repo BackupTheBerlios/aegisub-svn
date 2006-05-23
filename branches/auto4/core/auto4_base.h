@@ -47,6 +47,7 @@
 class AssFile;
 class wxWindow;
 class wxDialog;
+class wxStopWatch;
 
 
 DECLARE_EVENT_TYPE(wxEVT_AUTOMATION_SCRIPT_COMPLETED, -1)
@@ -170,6 +171,7 @@ namespace Automation4 {
 		wxStaticText *task_display;
 
 		void OnCancel(wxCommandEvent &evt);
+		void OnInit(wxInitDialogEvent &evt);
 
 	protected:
 		volatile bool cancelled;
@@ -181,6 +183,8 @@ namespace Automation4 {
 		void SetProgress(float _progress);
 		void SetTask(const wxString &_task);
 		void SetTitle(const wxString &_title);
+
+		volatile bool has_inited;
 
 		DECLARE_EVENT_TABLE()
 	};
