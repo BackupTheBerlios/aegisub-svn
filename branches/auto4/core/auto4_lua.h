@@ -30,7 +30,7 @@
 // AEGISUB
 //
 // Website: http://aegisub.cellosoft.com
-// Contact: mailto:zeratul@cellosoft.com
+// Contact: mailto:jiifurusu@gmail.com
 //
 
 #pragma once
@@ -60,9 +60,6 @@ namespace Automation4 {
 		int last_entry_id;
 		void GetAssEntry(int n); // set last_entry_ptr to point to item n
 
-		static void AssEntryToLua(lua_State *L, AssEntry *e); // makes a Lua representation of AssEntry and places on the top of the stack
-		static AssEntry *LuaToAssEntry(lua_State *L); // assumes a Lua representation of AssEntry on the top of the stack, and creates an AssEntry object of it
-
 		static int ObjectIndexRead(lua_State *L);
 		static int ObjectIndexWrite(lua_State *L);
 		static int ObjectGetLen(lua_State *L);
@@ -81,6 +78,9 @@ namespace Automation4 {
 
 		~LuaAssFile();
 	public:
+		static void AssEntryToLua(lua_State *L, AssEntry *e); // makes a Lua representation of AssEntry and places on the top of the stack
+		static AssEntry *LuaToAssEntry(lua_State *L); // assumes a Lua representation of AssEntry on the top of the stack, and creates an AssEntry object of it
+
 		LuaAssFile(lua_State *_L, AssFile *_ass, bool _can_modify, bool _can_set_undo);
 	};
 
@@ -123,6 +123,11 @@ namespace Automation4 {
 
 		void Create(); // load script and create internal structures etc.
 		void Destroy(); // destroy internal structures, unreg features and delete environment
+
+		static LuaScript* GetScriptObject(lua_State *L);
+
+		static int LuaTextExtents(lua_State *L);
+		static int LuaInclude(lua_State *L);
 
 	public:
 		LuaScript(const wxString &filename);

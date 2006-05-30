@@ -337,3 +337,31 @@ script_version (string)
   Version number of the script.
 
 ---
+
+Including other scripts
+
+For implementation reasons (and partially compatibility reasons), the Lua
+built-in dofile() and loadfile() functions are removed, and a custom include()
+function is provided instead.
+
+This function behaves almost the same as dofile(), except that it doesn't
+support reading from stdin (no such thing exists/is supposed to exist for
+Aegisub) and it follows some special search rules along a path.
+
+function include(filename)
+
+@filename (string)
+  The relative path to the script to include.
+
+Returns: Any return-values of the included script.
+
+File search rules:
+1. If there are no path-components in the filename (ie. just a filename),
+   the directory of the original script is searched first. Afterwards, the
+   search path specified in the Aegisub configuration file is searched.
+2. If the filename contains path components, it is only searched relative
+   to the location of the original script file.
+3. Absolute paths are not mangled in any way. Using absolute paths is
+   discouraged. (Absolute paths were disallowed in Automation 3.)
+
+---

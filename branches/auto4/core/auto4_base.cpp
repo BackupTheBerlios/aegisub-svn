@@ -30,10 +30,12 @@
 // AEGISUB
 //
 // Website: http://aegisub.cellosoft.com
-// Contact: mailto:zeratul@cellosoft.com
+// Contact: mailto:jiifurusu@gmail.com
 //
 
 #include "auto4_base.h"
+#include "ass_style.h"
+#include "options.h"
 #include <wx/filename.h>
 #include <wx/dir.h>
 #include <wx/dialog.h>
@@ -42,8 +44,125 @@
 #include <wx/stattext.h>
 #include <wx/thread.h>
 #include <wx/sizer.h>
+#include <wx/filefn.h>
+#include <wx/tokenzr.h>
+
+#ifdef WIN32
+#include <windows.h>
+#include <wchar.h>
+#else
+#include <ft2build.h>
+#include FT_FREETYPE_H
+#endif
 
 namespace Automation4 {
+
+	bool CalculateTextExtents(AssStyle *style, wxString &text, int &width, int &height, int &descent, int &extlead)
+	{
+		width = height = descent = extlead = 0;
+
+		double fontsize = style->fontsize;
+
+#ifdef WIN32
+		HDC thedc = CreateCompatibleDC(0);
+		if (!thedc) return false;
+		SetMapMode(thedc, MM_TEXT);
+
+		HDC dczero = GetDC(0);
+		fontsize = -MulDiv((int)(fontsize+0.5), GetDeviceCaps(dczero, LOGPIXELSY), 72);
+		ReleaseDC(0, dczero);
+
+		LOGFONT lf;
+		ZeroMemory(&lf, sizeof(lf));
+		lf.lfHeight = fontsize;
+		lf.lfWeight = style->bold ? FW_BOLD : FW_NORMAL;
+		lf.lfItalic = style->italic;
+		lf.lfUnderline = style->underline;
+		lf.lfStrikeOut = style->strikeout;
+		lf.lfCharSet = style->encoding;
+		lf.lfOutPrecision = OUT_TT_PRECIS;
+		lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;
+		lf.lfQuality = ANTIALIASED_QUALITY;
+		lf.lfPitchAndFamily = DEFAULT_PITCH|FF_DONTCARE;
+		wcsncpy(lf.lfFaceName, style->font.wc_str(), 32);
+
+		HFONT thefont = CreateFontIndirect(&lf);
+		if (!thefont) return false;
+		SelectObject(thedc, thefont);
+		
+		SIZE sz;
+		size_t thetextlen = text.length();
+		const wchar_t *thetext = text.wc_str();
+		if (style->spacing) {
+			width = 0;
+			for (unsigned int i = 0; i < thetextlen; i++) {
+				GetTextExtentPoint32(thedc, &thetext[i], 1, &sz);
+				width += sz.cx + (int)style->spacing;
+				height = sz.cy;
+			}
+		} else {
+			GetTextExtentPoint32(thedc, thetext, thetextlen, &sz);
+			width = sz.cx;
+			height = sz.cy;
+		}
+
+		// HACKISH FIX! This seems to work, but why? It shouldn't be needed?!?
+		fontsize = style->fontsize;
+		width = (int)(width * fontsize/height + 0.5);
+		height = (int)(fontsize + 0.5);
+
+		TEXTMETRIC tm;
+		GetTextMetrics(thedc, &tm);
+		descent = tm.tmDescent;
+		extlead= tm.tmExternalLeading;
+
+		DeleteObject(thedc);
+		DeleteObject(thefont);
+
+#else // not WIN32
+		wxMemoryDC thedc;
+
+		// fix fontsize to be 72 DPI
+		fontsize = -FT_MulDiv((int)(fontsize+0.5), 72, thedc.GetPPI().y);
+
+		// now try to get a font!
+		// use the font list to get some caching... (chance is the script will need the same font very often)
+		// USING wxTheFontList SEEMS TO CAUSE BAD LEAKS!
+		//wxFont *thefont = wxTheFontList->FindOrCreateFont(
+		wxFont thefont(
+			fontsize,
+			wxFONTFAMILY_DEFAULT,
+			style->italic ? wxFONTSTYLE_ITALIC : wxFONTSTYLE_NORMAL,
+			style->bold ? wxFONTWEIGHT_BOLD : wxFONTWEIGHT_NORMAL,
+			style->underline,
+			style->font,
+			wxFONTENCODING_SYSTEM); // FIXME! make sure to get the right encoding here, make some translation table between windows and wx encodings
+		thedc.SetFont(thefont);
+
+		if (style->spacing) {
+			// If there's inter-character spacing, kerning info must not be used, so calculate width per character
+			for (unsigned int i = 0; i < intext.length(); i++) {
+				int a, b, c, d;
+				thedc.GetTextExtent(intext[i], &a, &b, &c, &d);
+				width += a + spacing;
+				height = b > height ? b : height;
+				descent = c > descent ? c : descent;
+				extlead= d > extlead ? d : extlead;
+			}
+		} else {
+			// If the inter-character spacing should be zero, kerning info can (and must) be used, so calculate everything in one go
+			thedc.GetTextExtent(intext, &width, &height, &descent, &extlead);
+		}
+#endif
+
+		// Compensate for scaling
+		width = (int)(style->scalex / 100 * width + 0.5);
+		height = (int)(style->scaley / 100 * height + 0.5);
+		descent = (int)(style->scaley / 100 * descent + 0.5);
+		extlead = (int)(style->scaley / 100 * extlead + 0.5);
+
+		return true;
+	}
 
 
 	// Feature
@@ -238,7 +357,19 @@ namespace Automation4 {
 		, version(_T(""))
 		, loaded(false)
 	{
-		// nothing to do..?
+		// copied from auto3
+		include_path.clear();
+		include_path.EnsureFileAccessible(filename);
+		wxStringTokenizer toker(Options.AsText(_T("Automation Include Path")), _T("|"), false);
+		while (toker.HasMoreTokens()) {
+			// todo? make some error reporting here
+			wxFileName path(toker.GetNextToken());
+			if (!path.IsOk()) continue;
+			if (path.IsRelative()) continue;
+			if (!path.DirExists()) continue;
+			if (include_path.Member(path.GetLongPath())) continue;
+			include_path.Add(path.GetLongPath());
+		}
 	}
 
 	const wxString& Script::GetFilename() const

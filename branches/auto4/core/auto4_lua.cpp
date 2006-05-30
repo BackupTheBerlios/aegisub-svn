@@ -30,7 +30,7 @@
 // AEGISUB
 //
 // Website: http://aegisub.cellosoft.com
-// Contact: mailto:zeratul@cellosoft.com
+// Contact: mailto:jiifurusu@gmail.com
 //
 
 #include "auto4_lua.h"
@@ -41,6 +41,8 @@
 #include <lualib.h>
 #include <lauxlib.h>
 #include <wx/msgdlg.h>
+#include <wx/filename.h>
+#include <wx/filefn.h>
 #include <assert.h>
 #include <algorithm>
 
@@ -86,18 +88,6 @@ namespace Automation4 {
 		~LuaStackcheck() { }
 	};
 #endif
-
-
-	int lua_callable_showmessage(lua_State *L)
-	{
-		/*
-		wxString msg(lua_tostring(L, 1), wxConvUTF8);
-		wxMutexGuiLocker gui;
-		wxMessageBox(msg);
-		lua_pop(L, 1);
-		*/
-		return 0;
-	}
 
 
 	void LuaAssFile::CheckAllowModify()
@@ -573,6 +563,7 @@ namespace Automation4 {
 		}
 
 		assert(false);
+		return 0;
 	}
 
 	int LuaAssFile::ObjectIndexWrite(lua_State *L)
@@ -1044,17 +1035,18 @@ namespace Automation4 {
 
 			// register standard libs
 			lua_pushcfunction(L, luaopen_base); lua_call(L, 0, 0);
-			lua_pushcfunction(L, luaopen_base); lua_call(L, 0, 0);
 			lua_pushcfunction(L, luaopen_package); lua_call(L, 0, 0);
 			lua_pushcfunction(L, luaopen_string); lua_call(L, 0, 0);
 			lua_pushcfunction(L, luaopen_table); lua_call(L, 0, 0);
 			lua_pushcfunction(L, luaopen_math); lua_call(L, 0, 0);
 			_stackcheck.check(0);
-			// FIXME!
-			// unregister dofile() and loadfile() and provide alternative,
-			// or hack those two functions instead?
-
-			// TODO: register automation libs
+			// dofile and loadfile are replaced with include
+			lua_pushnil(L);
+			lua_setglobal(L, "dofile");
+			lua_pushnil(L);
+			lua_setglobal(L, "loadfile");
+			lua_pushcfunction(L, LuaInclude);
+			lua_setglobal(L, "include");
 
 			// prepare stuff in the registry
 			// reference to the script object
@@ -1066,17 +1058,16 @@ namespace Automation4 {
 			lua_setfield(L, LUA_REGISTRYINDEX, "features");
 			_stackcheck.check(0);
 
-			// for now: a stupid test function
-			lua_pushstring(L, "showmessage");
-			lua_pushcfunction(L, lua_callable_showmessage);
-			lua_settable(L, LUA_GLOBALSINDEX);
-			_stackcheck.check(0);
-
 			// make "aegisub" table
 			lua_pushstring(L, "aegisub");
 			lua_newtable(L);
+			// aegisub.register_macro
 			lua_pushcfunction(L, LuaFeatureMacro::LuaRegister);
 			lua_setfield(L, -2, "register_macro");
+			// aegisub.text_extents
+			lua_pushcfunction(L, LuaTextExtents);
+			lua_setfield(L, -2, "text_extents");
+			// store aegisub table to globals
 			lua_settable(L, LUA_GLOBALSINDEX);
 			_stackcheck.check(0);
 
@@ -1095,9 +1086,9 @@ namespace Automation4 {
 				LuaThreadedCall call(L, 0, 0);
 				if (call.Wait()) {
 					// error occurred, assumed to be on top of Lua stack
-					wxString err(lua_tostring(L, -1), wxConvUTF8);
-					err.Prepend(_T("An error occurred initialising the Lua script file \"") + GetFilename() + _T("\":\n\n"));
-					throw err.c_str();
+					wxString *err = new wxString(lua_tostring(L, -1), wxConvUTF8);
+					err->Prepend(_T("An error occurred initialising the Lua script file \"") + GetFilename() + _T("\":\n\n"));
+					throw err->c_str();
 				}
 			}
 			_stackcheck.check(0);
@@ -1156,6 +1147,89 @@ namespace Automation4 {
 		Create();
 	}
 
+	LuaScript* LuaScript::GetScriptObject(lua_State *L)
+	{
+		lua_getfield(L, LUA_REGISTRYINDEX, "aegisub");
+		void *ptr = lua_touserdata(L, -1);
+		lua_pop(L, 1);
+		return (LuaScript*)ptr;
+	}
+
+	int LuaScript::LuaTextExtents(lua_State *L)
+	{
+		if (!lua_istable(L, 1)) {
+			lua_pushstring(L, "First argument to text_extents must be a table");
+			lua_error(L);
+		}
+		if (!lua_isstring(L, 2)) {
+			lua_pushstring(L, "Second argument to text_extents must be a string");
+			lua_error(L);
+		}
+
+		lua_pushvalue(L, 1);
+		AssStyle *st = dynamic_cast<AssStyle*>(LuaAssFile::LuaToAssEntry(L));
+		lua_pop(L, 1);
+		if (!st) {
+			delete st;
+			lua_pushstring(L, "Not a style entry");
+			lua_error(L);
+		}
+
+		wxString text(lua_tostring(L, 2), wxConvUTF8);
+
+		int width, height, descent, extlead;
+		if (!CalculateTextExtents(st, text, width, height, descent, extlead)) {
+			delete st;
+			lua_pushstring(L, "Some internal error occurred calculating text_extents");
+			lua_error(L);
+		}
+		delete st;
+
+		lua_pushnumber(L, width);
+		lua_pushnumber(L, height);
+		lua_pushnumber(L, descent);
+		lua_pushnumber(L, extlead);
+		return 4;
+	}
+
+	int LuaScript::LuaInclude(lua_State *L)
+	{
+		LuaScript *s = GetScriptObject(L);
+
+		if (!lua_isstring(L, 1)) {
+			lua_pushstring(L, "Argument to include must be a string");
+			lua_error(L);
+			return 0;
+		}
+		wxString fnames(lua_tostring(L, 1), wxConvUTF8);
+
+		wxFileName fname(fnames);
+		if (fname.GetDirCount() == 0) {
+			// filename only
+			fname = s->include_path.FindAbsoluteValidPath(fnames);
+		} else if (fname.IsRelative()) {
+			// relative path
+			wxFileName sfname(s->GetFilename());
+			fname.MakeAbsolute(sfname.GetPath(true));
+		} else {
+			// absolute path, do nothing
+		}
+		if (!fname.IsOk() || !fname.FileExists()) {
+			lua_pushfstring(L, "Could not find Lua script for inclusion: %s", fnames.mb_str(wxConvUTF8));
+			lua_error(L);
+		}
+
+		if (luaL_loadfile(L, fname.GetFullPath().mb_str(wxConvUTF8))) {
+			lua_pushfstring(L, "An error occurred loading the Lua script file \"%s\":\n\n%s", fname.GetFullPath().mb_str(wxConvUTF8), lua_tostring(L, -1));
+			lua_error(L);
+			return 0;
+		}
+		int pretop = lua_gettop(L) - 1; // don't count the function value itself
+		lua_call(L, 0, LUA_MULTRET);
+		return lua_gettop(L) - pretop;
+	}
+
+
 	LuaThreadedCall::LuaThreadedCall(lua_State *_L, int _nargs, int _nresults)
 		: wxThread(wxTHREAD_JOINABLE)
 		, L(_L)
@@ -1177,7 +1251,7 @@ namespace Automation4 {
 		lua_getfield(L, LUA_REGISTRYINDEX, "progress_sink");
 		if (lua_isuserdata(L, -1)) {
 			LuaProgressSink *ps = LuaProgressSink::GetObjPointer(L, -1);
-			while (!ps->has_inited);
+			while (!ps->has_inited); // no need to sleep/yield or such, we'll assume this is preemptive multithreading and the wait will be short
 			wxMutexGuiLocker gui;
 			ps->EndModal(0);
 		}
@@ -1314,7 +1388,7 @@ namespace Automation4 {
 		wxLogDebug(_T("Exit code was %d"), (int)code);
 		wxLogDebug(_T("Getting result"));
 		// get result
-		bool result = lua_toboolean(L, -1);
+		bool result = !!lua_toboolean(L, -1);
 
 		// clean up stack
 		lua_pop(L, 1);

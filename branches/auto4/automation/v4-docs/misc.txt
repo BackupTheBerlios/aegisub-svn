@@ -18,7 +18,7 @@ at least.)
 function aegisub.text_extents(style, text)
 
 @style (table)
-  A "style" class Subtitle Line table. This 
+  A "style" class Subtitle Line table.
 
 @text (string)
   The text to calculate the rendered size of.

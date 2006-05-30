@@ -45,15 +45,21 @@
 #include "subtitle_format.h"
 
 class AssFile;
+class AssStyle;
 class wxWindow;
 class wxDialog;
 class wxStopWatch;
+class wxPathList;
 
 
 DECLARE_EVENT_TYPE(wxEVT_AUTOMATION_SCRIPT_COMPLETED, -1)
 
 
 namespace Automation4 {
+
+	// Calculate the extents of a text string given a style
+	bool CalculateTextExtents(AssStyle *style, wxString &text, int &width, int &height, int &descent, int &extlead);
+
 
 	// The top-level menus a macro can appear in
 	enum MacroMenu {
@@ -201,6 +207,8 @@ namespace Automation4 {
 		wxString author;
 		wxString version;
 		bool loaded; // is the script properly loaded?
+
+		wxPathList include_path;
 
 		std::vector<Feature*> features;
 
