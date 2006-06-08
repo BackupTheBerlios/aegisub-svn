@@ -1,5 +1,5 @@
--- Automation 4 test file
--- Create a Macro feature, that displays some text
+-- Automation 4 demo script
+-- Macro that adds \be1 tags in front of every selected line
 
 script_name = "Add edgeblur macro"
 script_description = "A testmacro showing how to do simple line modification in Automation 4"
