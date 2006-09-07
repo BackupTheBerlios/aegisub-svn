@@ -64,6 +64,7 @@ namespace Automation4 {
 		double fontsize = style->fontsize;
 
 #ifdef WIN32
+		// This is almost copypasta from TextSub
 		HDC thedc = CreateCompatibleDC(0);
 		if (!thedc) return false;
 		SetMapMode(thedc, MM_TEXT);
@@ -141,6 +142,7 @@ namespace Automation4 {
 
 		if (style->spacing) {
 			// If there's inter-character spacing, kerning info must not be used, so calculate width per character
+			// NOTE: Is kerning actually done either way?!
 			for (unsigned int i = 0; i < intext.length(); i++) {
 				int a, b, c, d;
 				thedc.GetTextExtent(intext[i], &a, &b, &c, &d);
@@ -182,6 +184,7 @@ namespace Automation4 {
 	FeatureMacro* Feature::AsMacro()
 	{
 		if (featureclass == SCRIPTFEATURE_MACRO)
+			// For VS, remember to enable building with RTTI, otherwise dynamic_cast<> won't work
 			return dynamic_cast<FeatureMacro*>(this);
 		return 0;
 	}

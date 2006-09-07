@@ -94,7 +94,7 @@ namespace Automation4 {
 	{
 		if (can_modify)
 			return;
-		lua_pushstring(L, "Attempt to modify subtitles in feature where disallowed.");
+		lua_pushstring(L, "Attempt to modify subtitles in read-only feature context.");
 		lua_error(L);
 	}
 
@@ -404,8 +404,8 @@ namespace Automation4 {
 
 			result = sty;
 
-		} else if (lclass == _T("stylex")) {
-			lua_pushstring(L, "Found line with class 'stylex' which is not supported. Wait until AS5 is a reality.");
+		} else if (lclass == _T("styleex")) {
+			lua_pushstring(L, "Found line with class 'styleex' which is not supported. Wait until AS5 is a reality.");
 			lua_error(L);
 			return 0;
 
@@ -465,9 +465,9 @@ namespace Automation4 {
 			while (n-- > 0) e++;
 			last_entry_ptr = e;
 
-		} else if (last_entry_id + n > last_entry_id + (ass->Line.size() - last_entry_id)/2) {
+		} else if (last_entry_id + n > last_entry_id + ((int)ass->Line.size() - last_entry_id)/2) {
 			// fastest to search from end
-			int i = ass->Line.size();
+			int i = (int)ass->Line.size();
 			e = ass->Line.end();
 			last_entry_id = n;
 			while (i-- > n) e--;
@@ -500,7 +500,7 @@ namespace Automation4 {
 
 					// get requested index
 					int reqid = lua_tointeger(L, 2);
-					if (reqid <= 0 || reqid > laf->ass->Line.size()) {
+					if (reqid <= 0 || reqid > (int)laf->ass->Line.size()) {
 						lua_pushfstring(L, "Requested out-of-range line from subtitle file: %d", reqid);
 						lua_error(L);
 						return 0;
@@ -656,7 +656,7 @@ namespace Automation4 {
 				return 0;
 			}
 			int n = lua_tointeger(L, itemcount);
-			if (n > laf->ass->Line.size() || n < 1) {
+			if (n > (int)laf->ass->Line.size() || n < 1) {
 				lua_pushstring(L, "Attempt to delete out of range line id from Subtitle Object");
 				lua_error(L);
 				return 0;
@@ -672,7 +672,7 @@ namespace Automation4 {
 		entryIter e = laf->last_entry_ptr++;
 		laf->ass->Line.erase(e);
 		int n = laf->last_entry_id;
-		for (int i = ids.size()-2; i >= 0; --i) {
+		for (int i = (int)ids.size()-2; i >= 0; --i) {
 			int id = ids[i];
 			while (id > n--) laf->last_entry_ptr--;
 			e = laf->last_entry_ptr++;
@@ -699,7 +699,7 @@ namespace Automation4 {
 		int a = lua_tointeger(L, 1), b = lua_tointeger(L, 2);
 
 		if (a < 1) a = 1;
-		if (b > laf->ass->Line.size()) b = laf->ass->Line.size();
+		if (b > (int)laf->ass->Line.size()) b = (int)laf->ass->Line.size();
 
 		if (b < a) return 0;
 
@@ -821,7 +821,7 @@ namespace Automation4 {
 		lua_newtable(L);
 		LuaStackcheck _stackcheck(L);
 
-		for (int i = 0; i < dia->Blocks.size(); i++) {
+		for (int i = 0; i < (int)dia->Blocks.size(); i++) {
 			AssDialogueBlock *block = dia->Blocks[i];
 
 			switch (block->type) {
@@ -844,7 +844,7 @@ namespace Automation4 {
 					bool brackets_open = false;
 					AssDialogueBlockOverride *ovr = block->GetAsOverride(block);
 
-					for (int j = 0; j < ovr->Tags.size(); j++) {
+					for (int j = 0; j < (int)ovr->Tags.size(); j++) {
 						AssOverrideTag *tag = ovr->Tags[j];
 
 						if (tag->IsValid() && tag->Name.Mid(0,2).CmpNoCase(_T("\\k")) == 0) {
@@ -934,7 +934,7 @@ namespace Automation4 {
 	{
 		LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
 		if (!laf->can_set_undo) {
-			lua_pushstring(L, "Attempt to set an undo point while not allowed.");
+			lua_pushstring(L, "Attempt to set an undo point in a read-only context.");
 			lua_error(L);
 			return 0;
 		}
@@ -1128,7 +1128,7 @@ namespace Automation4 {
 		if (!L) return;
 
 		// remove features
-		for (int i = 0; i < features.size(); i++) {
+		for (int i = 0; i < (int)features.size(); i++) {
 			Feature *f = features[i];
 			delete f;
 		}
@@ -1167,10 +1167,11 @@ namespace Automation4 {
 		}
 
 		lua_pushvalue(L, 1);
-		AssStyle *st = dynamic_cast<AssStyle*>(LuaAssFile::LuaToAssEntry(L));
+		AssEntry *et = LuaAssFile::LuaToAssEntry(L);
+		AssStyle *st = dynamic_cast<AssStyle*>(et);
 		lua_pop(L, 1);
 		if (!st) {
-			delete st;
+			delete et; // Make sure to delete the "live" pointer
 			lua_pushstring(L, "Not a style entry");
 			lua_error(L);
 		}
@@ -1279,7 +1280,7 @@ namespace Automation4 {
 		s->features.push_back(this);
 
 		// get the index+1 it was pushed into
-		myid = s->features.size()-1;
+		myid = (int)s->features.size()-1;
 
 		// create table with the functions
 		// get features table
@@ -1327,7 +1328,7 @@ namespace Automation4 {
 		const char *_menustring = lua_tostring(L, 3);
 		MacroMenu _menu = MACROMENU_NONE;
 
-		if (strcmp(_menustring, "edit") == 0) _menu = MACROMENU_EDIT;
+		     if (strcmp(_menustring, "edit")  == 0) _menu = MACROMENU_EDIT;
 		else if (strcmp(_menustring, "video") == 0) _menu = MACROMENU_VIDEO;
 		else if (strcmp(_menustring, "audio") == 0) _menu = MACROMENU_AUDIO;
 		else if (strcmp(_menustring, "tools") == 0) _menu = MACROMENU_TOOLS;
@@ -1351,7 +1352,10 @@ namespace Automation4 {
 		// new table for containing the functions for this feature
 		lua_newtable(L);
 		// store processing function
-		// TODO: check for being a function
+		if (!lua_isfunction(L, 4)) {
+			lua_pushstring(L, "The macro processing function must be a function");
+			lua_error(L);
+		}
 		lua_pushvalue(L, 4);
 		lua_rawseti(L, -2, 1);
 		// and validation function
