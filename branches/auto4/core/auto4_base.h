@@ -35,8 +35,8 @@
 
 #pragma once
 
-#ifndef AUTO4_CORE_H
-#define AUTO4_CORE_H
+#ifndef _AUTO4_BASE_H
+#define _AUTO4_BASE_H
 
 #include <wx/string.h>
 #include <vector>
@@ -94,7 +94,7 @@ namespace Automation4 {
 		wxString name;
 
 	protected:
-		Feature(ScriptFeatureClass _featureclass, wxString &_name);
+		Feature(ScriptFeatureClass _featureclass, const wxString &_name);
 
 	public:
 		virtual ~Feature() { }
@@ -115,7 +115,7 @@ namespace Automation4 {
 		MacroMenu menu;
 
 	protected:
-		FeatureMacro(wxString &_name, wxString &_description, MacroMenu _menu);
+		FeatureMacro(const wxString &_name, const wxString &_description, MacroMenu _menu);
 
 	public:
 		virtual ~FeatureMacro() { }
@@ -131,7 +131,7 @@ namespace Automation4 {
 	// The Export Filter feature; adds a new export filter
 	class FeatureFilter : public virtual Feature, public AssExportFilter {
 	protected:
-		FeatureFilter(wxString &_name, wxString &_description, int _priority);
+		FeatureFilter(const wxString &_name, const wxString &_description, int _priority);
 
 		// Subclasses should probably implement AssExportFilter::Init
 
@@ -151,7 +151,7 @@ namespace Automation4 {
 		wxString extension;
 
 	protected:
-		FeatureSubtitleFormat(wxString &_name, wxString &_extension);
+		FeatureSubtitleFormat(const wxString &_name, const wxString &_extension);
 
 	public:
 		virtual ~FeatureSubtitleFormat() { }

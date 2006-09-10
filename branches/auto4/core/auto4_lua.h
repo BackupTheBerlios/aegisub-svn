@@ -35,8 +35,8 @@
 
 #pragma once
 
-#ifndef AUTO4_LUA_H
-#define AUTO4_LUA_H
+#ifndef _AUTO4_LUA_H
+#define _AUTO4_LUA_H
 
 #include "auto4_base.h"
 #include <wx/thread.h>
@@ -106,7 +106,7 @@ namespace Automation4 {
 		lua_State *L;
 		int myid;
 
-		LuaFeature(lua_State *_L, ScriptFeatureClass _featureclass, wxString &_name);
+		LuaFeature(lua_State *_L, ScriptFeatureClass _featureclass, const wxString &_name);
 
 		void RegisterFeature();
 
@@ -152,13 +152,29 @@ namespace Automation4 {
 	private:
 		bool no_validate;
 	protected:
-		LuaFeatureMacro(wxString &_name, wxString &_description, MacroMenu _menu, lua_State *_L);
+		LuaFeatureMacro(const wxString &_name, const wxString &_description, MacroMenu _menu, lua_State *_L);
 	public:
 		static int LuaRegister(lua_State *L);
 		virtual ~LuaFeatureMacro() { }
 
 		virtual bool Validate(AssFile *subs, std::vector<int> &selected, int active);
 		virtual void Process(AssFile *subs, std::vector<int> &selected, int active, wxWindow *progress_parent);
+	};
+
+	class LuaFeatureFilter : public FeatureFilter, LuaFeature {
+	private:
+		bool has_config;
+		// some kind of dialog data struct will go here at some time
+	protected:
+		LuaFeatureFilter(const wxString &_name, const wxString &_description, int merit, lua_State *_L);
+
+		void Init();
+	public:
+		static int LuaRegister(lua_State *L);
+
+		void ProcessSubs(AssFile *subs);
+		wxWindow *GetConfigDialogWindow(wxWindow *parent);
+		void LoadSettings(bool IsDefault);
 	};
 
 };

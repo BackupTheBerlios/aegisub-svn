@@ -1,0 +1,71 @@
+Aegisub Automation 4 branch build
+Alpha-quality
+
+Please install in a folder separate from your main Aegisub installation.
+
+What works:
+- UI-wise:
+  o Scanning the automation/autoload/ dir for scripts and loading them
+  o Rescanning said dir
+  o Macros not in right-click menu
+  o Reloading scripts on command
+  o Adding arbitrary other scripts to the local-scripts list (ie. bound to
+    subtitles rather than the application)
+  o Storing locally loaded scripts into subtiles on save
+  o Restoring locally loaded scripts from subtitle file on load
+  o Graceful recovery from (most) errors
+  o Scripts with errors are not retained, but marked as "has errors"
+- Scripting-wise
+  o Global script info variables are read
+  o Macro registration
+  o Macro processing
+  o Macro validation function
+  o Basic subtitle manipulation:
+    # Getting subtitle data from a line
+	# Storing subtitle data back into a line
+	# Appending lines to script
+	# Inserting lines at random positions in the script
+	# UNTESTED: Deleting lines and ranges of lines
+	# All of the above needs more testing
+  o Setting undo-points
+  o Table of selected lines is correctly filled
+  o Parsing karaoke tags
+  o Modifying subtitles/setting undo points *should* be impossible in
+    Validation functions
+  o text_extents (should be identical to Auto3 version, meaning it also has
+    the same strange inaccuracies)
+
+What's broken:
+- UI-wise:
+  o No support for right-click menu macros
+  o Macro appearance in menus doesn't look too nice (needs a separator before
+    the macros)
+  o All functions in the program (including stuff unrelated to Automation)
+    should mark what kind of operation is put into the undo/redo buffer, but
+	this seems to be lost somewhere and isn't properly displayed.
+  o Updating the progress-UI too often causes it to be unresponsive -- don't
+    do that! This should be caught by the UI code and throttled.
+- Scripting-wise
+  o active_line parameter to macro validation and processing functions seems
+    to not be filled correctly
+  o Lua needs a string library for processing UTF-8 strings natively, as well
+    as a regex library for working with Unicode strings. Perhaps even
+	introduce a new userdata type for storing widestrings?
+
+What's missing:
+- UI wise:
+  o Apart from things relying on other Features being implemented in
+    scripting, nothing I can think of.
+- Scripting-wise:
+  o Export Filter Feature
+  o Override (un)parsing of tags
+  o Proper debug-output interface
+  o Subtitle Format reader/writer features
+  o File streams (needed for subtitle format features)
+  o Configuration dialogs (needed for export filter feature)
+
+Things to try:
+- Test, test, TEST!
+  Write some scripts that do more or less useful things.
+  Try to break stuff.
+  Report bugs.

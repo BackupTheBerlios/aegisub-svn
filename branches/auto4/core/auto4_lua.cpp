@@ -934,7 +934,7 @@ namespace Automation4 {
 	{
 		LuaAssFile *laf = GetObjPointer(L, lua_upvalueindex(1));
 		if (!laf->can_set_undo) {
-			lua_pushstring(L, "Attempt to set an undo point in a read-only context.");
+			lua_pushstring(L, "Attempt to set an undo point in a context without undo-support.");
 			lua_error(L);
 			return 0;
 		}
@@ -1064,6 +1064,9 @@ namespace Automation4 {
 			// aegisub.register_macro
 			lua_pushcfunction(L, LuaFeatureMacro::LuaRegister);
 			lua_setfield(L, -2, "register_macro");
+			// aegisub.register_filter
+			lua_pushcfunction(L, LuaFeatureFilter::LuaRegister);
+			lua_setfield(L, -2, "register_filter");
 			// aegisub.text_extents
 			lua_pushcfunction(L, LuaTextExtents);
 			lua_setfield(L, -2, "text_extents");
@@ -1263,7 +1266,7 @@ namespace Automation4 {
 	}
 
 
-	LuaFeature::LuaFeature(lua_State *_L, ScriptFeatureClass _featureclass, wxString &_name)
+	LuaFeature::LuaFeature(lua_State *_L, ScriptFeatureClass _featureclass, const wxString &_name)
 		: Feature(_featureclass, _name)
 		, L(_L)
 	{
@@ -1344,7 +1347,7 @@ namespace Automation4 {
 		return 0;
 	}
 
-	LuaFeatureMacro::LuaFeatureMacro(wxString &_name, wxString &_description, MacroMenu _menu, lua_State *_L)
+	LuaFeatureMacro::LuaFeatureMacro(const wxString &_name, const wxString &_description, MacroMenu _menu, lua_State *_L)
 		: LuaFeature(_L, SCRIPTFEATURE_MACRO, _name)
 		, FeatureMacro(_name, _description, _menu)
 		, Feature(SCRIPTFEATURE_MACRO, _name)
@@ -1407,7 +1410,7 @@ namespace Automation4 {
 	{
 		LuaStackcheck _stackcheck(L);
 
-		wxLogDebug(_T("Process start"));
+		wxLogDebug(_T("Start macro processing"));
 
 		GetFeatureFunction(1);
 		wxLogDebug(_T("Got function"));
@@ -1436,6 +1439,83 @@ namespace Automation4 {
 		// stack should be empty now
 		_stackcheck.check(0);
 		wxLogDebug(_T("Finished processing"));
+	}
+
+
+	LuaFeatureFilter::LuaFeatureFilter(const wxString &_name, const wxString &_description, int merit, lua_State *_L)
+		: LuaFeature(_L, SCRIPTFEATURE_FILTER, _name)
+		, FeatureFilter(_name, _description, merit)
+		, Feature(SCRIPTFEATURE_FILTER, _name)
+	{
+		// Works the same as in LuaFeatureMacro
+		lua_newtable(L);
+		if (!lua_isfunction(L, 4)) {
+			lua_pushstring(L, "The filter processing function must be a function");
+			lua_error(L);
+		}
+		lua_pushvalue(L, 4);
+		lua_rawseti(L, -2, 1);
+		lua_pushvalue(L, 5);
+		has_config = lua_isfunction(L, -1);
+		lua_rawseti(L, -2, 2);
+		RegisterFeature();
+		lua_pop(L, 1);
+	}
+
+	void LuaFeatureFilter::Init()
+	{
+		// Don't think there's anything to do here... (empty in auto3)
+	}
+
+	int LuaFeatureFilter::LuaRegister(lua_State *L)
+	{
+		wxString _name(lua_tostring(L, 1), wxConvUTF8);
+		wxString _description(lua_tostring(L, 2), wxConvUTF8);
+		int _merit = lua_tointeger(L, 3);
+
+		LuaFeatureFilter *filter = new LuaFeatureFilter(_name, _description, _merit, L);
+
+		return 0;
+	}
+
+	void LuaFeatureFilter::ProcessSubs(AssFile *subs)
+	{
+		wxLogDebug(_T("Start filter processing"));
+	
+		GetFeatureFunction(1);
+		wxLogDebug(_T("Got function"));
+
+		// prepare function call
+		// subtitles (don't allow undo, doesn't make sense in export filter context)
+		LuaAssFile *subsobj = new LuaAssFile(L, subs, true, false);
+		// config
+		lua_newtable(L); // TODO
+		wxLogDebug(_T("Prepared parameters"));
+
+		LuaProgressSink *ps = new LuaProgressSink(L, 0);
+		ps->SetTitle(GetName());
+
+		// do call
+		LuaThreadedCall call(L, 2, 0);
+
+		ps->ShowModal();
+		wxLogDebug(_T("Waiting for call to finish"));
+		wxThread::ExitCode code = call.Wait();
+		wxLogDebug(_T("Exit code was %d"), (int)code);
+		if (code) ThrowError();
+
+		delete ps;
+	}
+
+	wxWindow *LuaFeatureFilter::GetConfigDialogWindow(wxWindow *parent)
+	{
+		// TODO (leave config dialogs alone for now)
+		return 0;
+	}
+
+	void LuaFeatureFilter::LoadSettings(bool IsDefault)
+	{
+		// TODO (leave config dialogs alone for now)
 	}
 
 

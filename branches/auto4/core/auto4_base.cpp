@@ -102,7 +102,7 @@ namespace Automation4 {
 				height = sz.cy;
 			}
 		} else {
-			GetTextExtentPoint32(thedc, thetext, thetextlen, &sz);
+			GetTextExtentPoint32(thedc, thetext, (int)thetextlen, &sz);
 			width = sz.cx;
 			height = sz.cy;
 		}
@@ -169,7 +169,7 @@ namespace Automation4 {
 
 	// Feature
 
-	Feature::Feature(ScriptFeatureClass _featureclass, wxString &_name)
+	Feature::Feature(ScriptFeatureClass _featureclass, const wxString &_name)
 		: featureclass(_featureclass)
 		, name(_name)
 	{
@@ -211,7 +211,7 @@ namespace Automation4 {
 
 	// FeatureMacro
 
-	FeatureMacro::FeatureMacro(wxString &_name, wxString &_description, MacroMenu _menu)
+	FeatureMacro::FeatureMacro(const wxString &_name, const wxString &_description, MacroMenu _menu)
 		: Feature(SCRIPTFEATURE_MACRO, _name)
 		, description(_description)
 		, menu(_menu)
@@ -232,7 +232,7 @@ namespace Automation4 {
 
 	// FeatureFilter
 
-	FeatureFilter::FeatureFilter(wxString &_name, wxString &_description, int _priority)
+	FeatureFilter::FeatureFilter(const wxString &_name, const wxString &_description, int _priority)
 		: Feature(SCRIPTFEATURE_FILTER, _name)
 		, AssExportFilter()
 	{
@@ -243,7 +243,7 @@ namespace Automation4 {
 
 	// FeatureReader
 
-	FeatureSubtitleFormat::FeatureSubtitleFormat(wxString &_name, wxString &_extension)
+	FeatureSubtitleFormat::FeatureSubtitleFormat(const wxString &_name, const wxString &_extension)
 		: Feature(SCRIPTFEATURE_SUBFORMAT, _name)
 		, extension(_extension)
 	{
@@ -274,15 +274,14 @@ namespace Automation4 {
 		, has_inited(false)
 	{
 		// make the controls
-		progress_display = new wxGauge(this, -1, 1000, wxDefaultPosition, wxSize(200, 20));
+		progress_display = new wxGauge(this, -1, 1000, wxDefaultPosition, wxSize(300, 20));
 		title_display = new wxStaticText(this, -1, _T(""), wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE|wxST_NO_AUTORESIZE);
 		task_display = new wxStaticText(this, -1, _T(""), wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE|wxST_NO_AUTORESIZE);
 		cancel_button = new wxButton(this, wxID_CANCEL);
 
 		// put it in a sizer
-		// FIXME: needs borders etc
 		wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
-		sizer->Add(title_display, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+		sizer->Add(title_display, 0, wxEXPAND | wxALL, 5);
 		sizer->Add(progress_display, 0, wxALL&~wxTOP, 5);
 		sizer->Add(task_display, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 		sizer->Add(cancel_button, 0, wxALIGN_CENTER | wxLEFT | wxRIGHT | wxBOTTOM, 5);

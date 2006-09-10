@@ -123,7 +123,7 @@ void DialogAutomation::AddScript(ExtraScriptInfo &ei)
 	} else {
 		itm.SetText(_T("L"));
 	}
-	itm.SetData(script_info.size()-1);
+	itm.SetData((int)script_info.size()-1);
 	itm.SetId(list->GetItemCount());
 	int i = list->InsertItem(itm);
 	list->SetItem(i, 1, ei.script->GetName());
@@ -170,7 +170,7 @@ void DialogAutomation::OnAdd(wxCommandEvent &evt)
 	// build filename filter list
 	wxString fnfilter;
 	const std::vector<Automation4::ScriptFactory*> &factories = Automation4::ScriptFactory::GetFactories();
-	for (int i = 0; i < factories.size(); i++) {
+	for (int i = 0; i < (int)factories.size(); i++) {
 		const Automation4::ScriptFactory *fact = factories[i];
 		if (fact->GetEngineName().IsEmpty() || fact->GetFilenamePattern().IsEmpty())
 			continue;
