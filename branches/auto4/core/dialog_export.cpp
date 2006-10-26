@@ -177,7 +177,7 @@ END_EVENT_TABLE()
 // Process start
 void DialogExport::OnProcess(wxCommandEvent &event) {
 	// Get destination
-	wxString filename = wxFileSelector(_("Export subtitles file"),_T(""),_T(""),_T(""),_T("All Supported Types (*.ass,*.ssa,*.srt,*.prs)|*.ass;*.ssa;*.srt;*.prs|Advanced Substation Alpha (*.ass)|*.ass|Substation Alpha (*.ssa)|*.ssa|SubRip (*.srt)|*.srt|Pre-Rendered Subtitles (*.prs)|*.prs"),wxSAVE | wxOVERWRITE_PROMPT);
+	wxString filename = wxFileSelector(_("Export subtitles file"),_T(""),_T(""),_T(""),_T("All Supported Types (*.ass,*.ssa,*.srt,*.prs)|*.ass;*.ssa;*.srt;*.prs|Advanced Substation Alpha (*.ass)|*.ass|Substation Alpha (*.ssa)|*.ssa|SubRip (*.srt)|*.srt|Pre-Rendered Subtitles (*.prs)|*.prs"),wxSAVE | wxOVERWRITE_PROMPT, this);
 	if (filename.empty()) return;
 
 	// Add filters
@@ -189,8 +189,9 @@ void DialogExport::OnProcess(wxCommandEvent &event) {
 
 	// Export
 	try {
+		wxBusyCursor busy;
 		Export->GetOriginalSubs()->SetScriptInfo(_T("Export Encoding"), CharsetList->GetStringSelection());
-		Export->Export(filename, CharsetList->GetStringSelection());
+		Export->Export(filename, CharsetList->GetStringSelection(), this);
 	}
 	catch (const wchar_t *error) {
 		wxString err(error);

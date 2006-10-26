@@ -647,8 +647,7 @@ namespace Automation4 {
 		std::vector<int> ids;
 		ids.reserve(itemcount);
 
-		// the the item id's and sort them, so we can delete from last to first,
-		// to preserve original numbering
+		// sort the item id's so we can delete from last to first to preserve original numbering
 		while (itemcount > 0) {
 			if (!lua_isnumber(L, itemcount)) {
 				lua_pushstring(L, "Attempt to delete non-numeric line id from Subtitle Object");
@@ -662,6 +661,7 @@ namespace Automation4 {
 				return 0;
 			}
 			ids.push_back(n-1); // make C-style line ids
+			--itemcount;
 		}
 		std::sort(ids.begin(), ids.end());
 
@@ -1246,7 +1246,9 @@ namespace Automation4 {
 
 	wxThread::ExitCode LuaThreadedCall::Entry()
 	{
+		wxLogDebug(_T("Starting threaded Lua call"));
 		int result = lua_pcall(L, nargs, nresults, 0);
+		wxLogDebug(_T("Returned from Lua"));
 
 		// see if there's a progress sink window to close
 		// FIXME! POSSIBLE RACE CONDITION!
@@ -1254,14 +1256,23 @@ namespace Automation4 {
 		// the while loop below should solve this, but someone needs to review this (and test it)
 		lua_getfield(L, LUA_REGISTRYINDEX, "progress_sink");
 		if (lua_isuserdata(L, -1)) {
+			wxLogDebug(_T("Got progress sink object"));
 			LuaProgressSink *ps = LuaProgressSink::GetObjPointer(L, -1);
-			while (!ps->has_inited); // no need to sleep/yield or such, we'll assume this is preemptive multithreading and the wait will be short
-			wxMutexGuiLocker gui;
-			ps->EndModal(0);
+			//wxLogDebug(_T("Waiting for sink to have inited"));
+			//while (!ps->has_inited); // no need to sleep/yield or such, we'll assume this is preemptive multithreading and the wait will be short
+			//wxLogDebug(_T("Sink finished init, getting GUI lock"));
+			//wxMutexGuiLocker gui;
+			//wxLogDebug(_T("Got GUI lock, telling sink to stop being modal"));
+			wxLogDebug(_T("Setting script_finished flag in sink"));
+			ps->script_finished = true;
+			wxWakeUpIdle();
+			//wxLogDebug(_T("Sink should now stop being modal"));
 		}
 		lua_pop(L, 1);
 
+		wxLogDebug(_T("Telling Lua GC to collect"));
 		lua_gc(L, LUA_GCCOLLECT, 0);
+		wxLogDebug(_T("Finished collecting, now returning from threaded call"));
 		return (wxThread::ExitCode)result;
 	}
 
@@ -1478,7 +1489,7 @@ namespace Automation4 {
 		return 0;
 	}
 
-	void LuaFeatureFilter::ProcessSubs(AssFile *subs)
+	void LuaFeatureFilter::ProcessSubs(AssFile *subs, wxWindow *export_dialog)
 	{
 		wxLogDebug(_T("Start filter processing"));
 	
@@ -1492,13 +1503,15 @@ namespace Automation4 {
 		lua_newtable(L); // TODO
 		wxLogDebug(_T("Prepared parameters"));
 
-		LuaProgressSink *ps = new LuaProgressSink(L, 0);
+		LuaProgressSink *ps = new LuaProgressSink(L, export_dialog);
 		ps->SetTitle(GetName());
 
 		// do call
 		LuaThreadedCall call(L, 2, 0);
 
+		//ps->has_inited = true; // debug code only, shouldn't go in production
 		ps->ShowModal();
+
 		wxLogDebug(_T("Waiting for call to finish"));
 		wxThread::ExitCode code = call.Wait();
 		wxLogDebug(_T("Exit code was %d"), (int)code);
@@ -1614,6 +1627,8 @@ namespace Automation4 {
 
 	int LuaProgressSink::LuaDebugOut(lua_State *L)
 	{
+		wxString msg(lua_tostring(L, 1), wxConvUTF8);
+		wxLogDebug(msg);
 		return 0;
 	}
 

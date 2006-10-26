@@ -272,6 +272,7 @@ namespace Automation4 {
 		: wxDialog(parent, -1, _T("Automation"), wxDefaultPosition, wxDefaultSize, wxDOUBLE_BORDER)
 		, cancelled(false)
 		, has_inited(false)
+		, script_finished(false)
 	{
 		// make the controls
 		progress_display = new wxGauge(this, -1, 1000, wxDefaultPosition, wxSize(300, 20));
@@ -300,6 +301,12 @@ namespace Automation4 {
 
 	ProgressSink::~ProgressSink()
 	{
+	}
+
+	void ProgressSink::OnIdle(wxIdleEvent &evt)
+	{
+		if (script_finished)
+			EndModal(0);
 	}
 
 	void ProgressSink::SetProgress(float _progress)
@@ -335,6 +342,7 @@ namespace Automation4 {
 	BEGIN_EVENT_TABLE(ProgressSink, wxWindow)
 		EVT_INIT_DIALOG(ProgressSink::OnInit)
 		EVT_BUTTON(wxID_CANCEL, ProgressSink::OnCancel)
+		EVT_IDLE(ProgressSink::OnIdle)
 	END_EVENT_TABLE()
 
 	void ProgressSink::OnInit(wxInitDialogEvent &evt)

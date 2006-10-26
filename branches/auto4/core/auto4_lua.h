@@ -172,7 +172,7 @@ namespace Automation4 {
 	public:
 		static int LuaRegister(lua_State *L);
 
-		void ProcessSubs(AssFile *subs);
+		void ProcessSubs(AssFile *subs, wxWindow *export_dialog);
 		wxWindow *GetConfigDialogWindow(wxWindow *parent);
 		void LoadSettings(bool IsDefault);
 	};

@@ -178,6 +178,7 @@ namespace Automation4 {
 
 		void OnCancel(wxCommandEvent &evt);
 		void OnInit(wxInitDialogEvent &evt);
+		void OnIdle(wxIdleEvent &evt);
 
 	protected:
 		volatile bool cancelled;
@@ -191,6 +192,7 @@ namespace Automation4 {
 		void SetTitle(const wxString &_title);
 
 		volatile bool has_inited;
+		volatile bool script_finished;
 
 		DECLARE_EVENT_TABLE()
 	};
