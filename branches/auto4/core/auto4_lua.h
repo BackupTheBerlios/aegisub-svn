@@ -44,8 +44,11 @@
 #include <lua.h>
 #include <lauxlib.h>
 
+class wxWindow;
+
 namespace Automation4 {
 
+	// Provides access to an AssFile object (and all lines contained) for a Lua script
 	class LuaAssFile {
 	private:
 		AssFile *ass;
@@ -84,6 +87,8 @@ namespace Automation4 {
 		LuaAssFile(lua_State *_L, AssFile *_ass, bool _can_modify, bool _can_set_undo);
 	};
 
+
+	// Provides progress UI and control functions for a Lua script
 	class LuaProgressSink : public ProgressSink {
 	private:
 		lua_State *L;
@@ -101,6 +106,23 @@ namespace Automation4 {
 		static LuaProgressSink* GetObjPointer(lua_State *L, int idx);
 	};
 
+
+	// Provides Config UI functions for a Lua script
+	class LuaConfigWindow {
+	private:
+		lua_State *L;
+
+		static int LuaDisplay(lua_State *L);
+
+	public:
+		LuaConfigWindow(lua_State *L);
+		virtual ~LuaConfigWindow();
+
+		static wxWindow* CreateWindow(lua_State *L); // top of stack points to a config window description, create a window from that
+	};
+
+
+	// Second base-class for Lua implemented Features
 	class LuaFeature : public virtual Feature {
 	protected:
 		lua_State *L;
@@ -115,6 +137,8 @@ namespace Automation4 {
 		void ThrowError();
 	};
 
+
+	// Class of Lua scripts
 	class LuaScript : public Script {
 		friend class LuaFeature;
 
@@ -136,6 +160,7 @@ namespace Automation4 {
 		virtual void Reload();
 	};
 
+
 	// A single call to a Lua function, run inside a separate thread.
 	// This object should be created on the stack in the function that does the call.
 	class LuaThreadedCall : public wxThread {
@@ -148,6 +173,8 @@ namespace Automation4 {
 		virtual ExitCode Entry();
 	};
 
+
+	// Implementation of the Macro Feature for Lua scripts
 	class LuaFeatureMacro : public FeatureMacro, LuaFeature {
 	private:
 		bool no_validate;
@@ -161,6 +188,8 @@ namespace Automation4 {
 		virtual void Process(AssFile *subs, std::vector<int> &selected, int active, wxWindow *progress_parent);
 	};
 
+
+	// Implementation of the Export Filter Feature for Lua scripts
 	class LuaFeatureFilter : public FeatureFilter, LuaFeature {
 	private:
 		bool has_config;

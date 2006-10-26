@@ -17,15 +17,19 @@ What works:
   o Scripts with errors are not retained, but marked as "has errors"
 - Scripting-wise
   o Global script info variables are read
-  o Macro registration
-  o Macro processing
-  o Macro validation function
+  o Macros:
+    # Registration function
+	# Processing function
+	# Validation function
+  o Export filters:
+    # Registration function
+	# Processing function
   o Basic subtitle manipulation:
     # Getting subtitle data from a line
 	# Storing subtitle data back into a line
 	# Appending lines to script
 	# Inserting lines at random positions in the script
-	# UNTESTED: Deleting lines and ranges of lines
+	# Deleting lines and (UNTESTED) ranges of lines
 	# All of the above needs more testing
   o Setting undo-points
   o Table of selected lines is correctly filled
@@ -51,18 +55,19 @@ What's broken:
   o Lua needs a string library for processing UTF-8 strings natively, as well
     as a regex library for working with Unicode strings. Perhaps even
 	introduce a new userdata type for storing widestrings?
+  o Export filters:
+    # No Config function support, since config dialogs are missing
 
 What's missing:
 - UI wise:
   o Apart from things relying on other Features being implemented in
     scripting, nothing I can think of.
 - Scripting-wise:
-  o Export Filter Feature
   o Override (un)parsing of tags
   o Proper debug-output interface
   o Subtitle Format reader/writer features
-  o File streams (needed for subtitle format features)
-  o Configuration dialogs (needed for export filter feature)
+  o File streams (required for subtitle format features)
+  o Configuration dialogs (required for export filter feature completeness)
 
 Things to try:
 - Test, test, TEST!

@@ -136,7 +136,7 @@ namespace Automation4 {
 		// Subclasses should probably implement AssExportFilter::Init
 
 	public:
-		virtual ~FeatureFilter() { }
+		virtual ~FeatureFilter();
 
 		// Subclasses must implement the AssExportFilter virtual functions:
 		//   ProcessSubs
@@ -217,6 +217,8 @@ namespace Automation4 {
 		Script(const wxString &_filename);
 
 	public:
+		virtual ~Script();
+
 		virtual void Reload() = 0;
 
 		const wxString& GetFilename() const;

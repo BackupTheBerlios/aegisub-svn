@@ -240,8 +240,13 @@ namespace Automation4 {
 		Register(_name, _priority);
 	}
 
+	FeatureFilter::~FeatureFilter()
+	{
+		Unregister();
+	}
 
-	// FeatureReader
+
+	// FeatureSubtitleFormat
 
 	FeatureSubtitleFormat::FeatureSubtitleFormat(const wxString &_name, const wxString &_extension)
 		: Feature(SCRIPTFEATURE_SUBFORMAT, _name)
@@ -379,6 +384,13 @@ namespace Automation4 {
 			if (!path.DirExists()) continue;
 			if (include_path.Member(path.GetLongPath())) continue;
 			include_path.Add(path.GetLongPath());
+		}
+	}
+
+	Script::~Script()
+	{
+		for (std::vector<Feature*>::iterator f = features.begin(); f != features.end(); ++f) {
+			delete *f;
 		}
 	}
 
