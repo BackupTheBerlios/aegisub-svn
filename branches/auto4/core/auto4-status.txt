@@ -38,6 +38,7 @@ What works:
     Validation functions
   o text_extents (should be identical to Auto3 version, meaning it also has
     the same strange inaccuracies)
+  o include() function
 
 What's broken:
 - UI-wise:

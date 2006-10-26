@@ -115,7 +115,7 @@ namespace Automation4 {
 		static int LuaDisplay(lua_State *L);
 
 	public:
-		LuaConfigWindow(lua_State *L);
+		LuaConfigWindow(lua_State *_L);
 		virtual ~LuaConfigWindow();
 
 		static wxWindow* CreateWindow(lua_State *L); // top of stack points to a config window description, create a window from that

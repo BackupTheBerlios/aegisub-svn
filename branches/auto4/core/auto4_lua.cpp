@@ -1632,6 +1632,49 @@ namespace Automation4 {
 		return 0;
 	}
 
+	LuaConfigWindow::LuaConfigWindow(lua_State *_L)
+		: L(_L)
+	{
+		// register the single function
+
+		// get the global 'aegisub' table
+		lua_getglobal(L, "aegisub");
+		// create a new table, this will be the 'aegisub.dialog' table
+		lua_newtable(L);
+
+		// create new C function from LuaDisplay and add to the 'aegisub.dialog' table
+		lua_pushcclosure(L, LuaDisplay, 0);
+		lua_setfield(L, -2, "display");
+
+		// actually put the 'dialog' table into the 'aegisub' table
+		lua_setfield(L, -2, "dialog");
+		// the stack now just contains the 'aegisub' table, remove that to balance out
+		lua_pop(L, 1);
+	}
+
+	LuaConfigWindow::~LuaConfigWindow()
+	{
+		// remove the 'aegisub.dialog' table again
+		lua_getglobal(L, "aegisub");
+		lua_pushnil(L);
+		lua_setfield(L, -2, "dialog");
+		lua_pop(L, 1);
+	}
+
+	int LuaConfigWindow::LuaDisplay(lua_State *L)
+	{
+		// TODO: return false/nothing for now
+		lua_pushboolean(L, 0);
+		lua_newtable(L);
+		return 2;
+	}
+
+	wxWindow* LuaConfigWindow::CreateWindow(lua_State *L)
+	{
+		// assume top of the stack contains a dialog control table
+		return 0;
+	}
+
 
 	// Factory class for Lua scripts
 	// Not declared in header, since it doesn't need to be accessed from outside
