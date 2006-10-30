@@ -110,6 +110,7 @@ value (string)
 Dialog Definition table format
 
 The Dialog Definition table is simply an Array Table of Dialog Control tables.
+
 Note, however, that while the visual ordering of the controls are decided
 entirely by the "x", "y", "width" and "height" of the controls, the
 "tab order" of the controls is decided by their ordering in the Dialog

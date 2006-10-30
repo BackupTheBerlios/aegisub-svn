@@ -171,10 +171,14 @@ namespace Automation4 {
 	// Base class for progress reporting/other output
 	class ProgressSink : public wxDialog {
 	private:
+		wxBoxSizer *sizer;
 		wxGauge *progress_display;
 		wxButton *cancel_button;
 		wxStaticText *title_display;
 		wxStaticText *task_display;
+		wxTextCtrl *debug_output;
+
+		bool debug_visible;
 
 		void OnCancel(wxCommandEvent &evt);
 		void OnInit(wxInitDialogEvent &evt);
@@ -182,6 +186,9 @@ namespace Automation4 {
 
 	protected:
 		volatile bool cancelled;
+
+		wxString pending_debug_output;
+		wxMutex pending_debug_output_mutex;
 
 		ProgressSink(wxWindow *parent);
 		virtual ~ProgressSink();

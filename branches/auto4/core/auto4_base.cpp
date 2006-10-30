@@ -278,19 +278,23 @@ namespace Automation4 {
 		, cancelled(false)
 		, has_inited(false)
 		, script_finished(false)
+		, debug_visible(false)
 	{
 		// make the controls
 		progress_display = new wxGauge(this, -1, 1000, wxDefaultPosition, wxSize(300, 20));
 		title_display = new wxStaticText(this, -1, _T(""), wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE|wxST_NO_AUTORESIZE);
 		task_display = new wxStaticText(this, -1, _T(""), wxDefaultPosition, wxDefaultSize, wxALIGN_CENTRE|wxST_NO_AUTORESIZE);
 		cancel_button = new wxButton(this, wxID_CANCEL);
+		debug_output = new wxTextCtrl(this, -1, _T(""), wxDefaultPosition, wxSize(300, 120), wxTE_MULTILINE|wxTE_READONLY);
 
 		// put it in a sizer
-		wxBoxSizer *sizer = new wxBoxSizer(wxVERTICAL);
+		sizer = new wxBoxSizer(wxVERTICAL);
 		sizer->Add(title_display, 0, wxEXPAND | wxALL, 5);
 		sizer->Add(progress_display, 0, wxALL&~wxTOP, 5);
 		sizer->Add(task_display, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
 		sizer->Add(cancel_button, 0, wxALIGN_CENTER | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+		sizer->Add(debug_output, 0, wxEXPAND | wxLEFT | wxRIGHT | wxBOTTOM, 5);
+		sizer->Show(debug_output, false);
 
 		// make the title a slightly larger font
 		wxFont title_font = title_display->GetFont();
@@ -310,8 +314,31 @@ namespace Automation4 {
 
 	void ProgressSink::OnIdle(wxIdleEvent &evt)
 	{
-		if (script_finished)
-			EndModal(0);
+		if (script_finished) {
+			if (!debug_visible) {
+				EndModal(0);
+			} else {
+				cancel_button->Enable(true);
+				cancel_button->SetLabel(_("Close"));
+				SetTask(_("Script completed"));
+			}
+		}
+
+		wxMutexLocker lock(pending_debug_output_mutex);
+		if (!pending_debug_output.IsEmpty()) {
+			if (!debug_visible) {
+				sizer->Show(debug_output, true);
+				Layout();
+				sizer->Fit(this);
+
+				debug_visible = true;
+			}
+
+			*debug_output << pending_debug_output;
+			debug_output->SetInsertionPointEnd();
+
+			pending_debug_output = _T("");
+		}
 	}
 
 	void ProgressSink::SetProgress(float _progress)
@@ -357,8 +384,12 @@ namespace Automation4 {
 
 	void ProgressSink::OnCancel(wxCommandEvent &evt)
 	{
-		cancelled = true;
-		cancel_button->Enable(false);
+		if (!script_finished) {
+			cancelled = true;
+			cancel_button->Enable(false);
+		} else {
+			EndModal(0);
+		}
 	}
 
 

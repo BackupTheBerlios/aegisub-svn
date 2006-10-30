@@ -15,6 +15,7 @@ What works:
   o Restoring locally loaded scripts from subtitle file on load
   o Graceful recovery from (most) errors
   o Scripts with errors are not retained, but marked as "has errors"
+  o Nice presentation of script debug-output
 - Scripting-wise
   o Global script info variables are read
   o Macros:
@@ -39,6 +40,7 @@ What works:
   o text_extents (should be identical to Auto3 version, meaning it also has
     the same strange inaccuracies)
   o include() function
+  o Making debug-output
 
 What's broken:
 - UI-wise:
@@ -65,7 +67,6 @@ What's missing:
     scripting, nothing I can think of.
 - Scripting-wise:
   o Override (un)parsing of tags
-  o Proper debug-output interface
   o Subtitle Format reader/writer features
   o File streams (required for subtitle format features)
   o Configuration dialogs (required for export filter feature completeness)

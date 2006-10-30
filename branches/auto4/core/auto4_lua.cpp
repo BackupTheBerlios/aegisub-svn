@@ -43,6 +43,7 @@
 #include <wx/msgdlg.h>
 #include <wx/filename.h>
 #include <wx/filefn.h>
+#include <wx/window.h>
 #include <assert.h>
 #include <algorithm>
 
@@ -1627,8 +1628,10 @@ namespace Automation4 {
 
 	int LuaProgressSink::LuaDebugOut(lua_State *L)
 	{
+		LuaProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
 		wxString msg(lua_tostring(L, 1), wxConvUTF8);
-		wxLogDebug(msg);
+		wxMutexLocker lock(ps->pending_debug_output_mutex);
+		ps->pending_debug_output << _T("\n") << msg;
 		return 0;
 	}
 
@@ -1663,6 +1666,15 @@ namespace Automation4 {
 
 	int LuaConfigWindow::LuaDisplay(lua_State *L)
 	{
+		if (!lua_istable(L, 1)) {
+			lua_pushstring(L, "No dialog definition table given to aegisub.dialog.display");
+			lua_error(L);
+			return 0;
+		}
+
+		lua_pushvalue(L, 1);
+		wxWindow *dlg = CreateWindow(L);
+
 		// TODO: return false/nothing for now
 		lua_pushboolean(L, 0);
 		lua_newtable(L);
@@ -1672,7 +1684,11 @@ namespace Automation4 {
 	wxWindow* LuaConfigWindow::CreateWindow(lua_State *L)
 	{
 		// assume top of the stack contains a dialog control table
-		return 0;
+		wxWindow *res = new wxWindow();
+
+		// remove table from stack
+		lua_pop(L, 1);
+		return res;
 	}
 
 
