@@ -1247,33 +1247,20 @@ namespace Automation4 {
 
 	wxThread::ExitCode LuaThreadedCall::Entry()
 	{
-		wxLogDebug(_T("Starting threaded Lua call"));
 		int result = lua_pcall(L, nargs, nresults, 0);
-		wxLogDebug(_T("Returned from Lua"));
 
 		// see if there's a progress sink window to close
-		// FIXME! POSSIBLE RACE CONDITION!
-		// if this code is called before the progress sink is shown modal the program hangs!
-		// the while loop below should solve this, but someone needs to review this (and test it)
 		lua_getfield(L, LUA_REGISTRYINDEX, "progress_sink");
 		if (lua_isuserdata(L, -1)) {
-			wxLogDebug(_T("Got progress sink object"));
 			LuaProgressSink *ps = LuaProgressSink::GetObjPointer(L, -1);
-			//wxLogDebug(_T("Waiting for sink to have inited"));
-			//while (!ps->has_inited); // no need to sleep/yield or such, we'll assume this is preemptive multithreading and the wait will be short
-			//wxLogDebug(_T("Sink finished init, getting GUI lock"));
-			//wxMutexGuiLocker gui;
-			//wxLogDebug(_T("Got GUI lock, telling sink to stop being modal"));
-			wxLogDebug(_T("Setting script_finished flag in sink"));
+			// don't bother protecting this with a mutex, it should be safe enough like this
 			ps->script_finished = true;
+			// tell wx to run its idle-events now, just to make the progress window notice earlier that we're done
 			wxWakeUpIdle();
-			//wxLogDebug(_T("Sink should now stop being modal"));
 		}
 		lua_pop(L, 1);
 
-		wxLogDebug(_T("Telling Lua GC to collect"));
 		lua_gc(L, LUA_GCCOLLECT, 0);
-		wxLogDebug(_T("Finished collecting, now returning from threaded call"));
 		return (wxThread::ExitCode)result;
 	}
 
@@ -1388,51 +1375,33 @@ namespace Automation4 {
 		if (no_validate)
 			return true;
 
-		wxLogDebug(_T("Validate start"));
-
-		int startstack = lua_gettop(L);
-
-		GetFeatureFunction(2);
-		wxLogDebug(_T("Got function"));
+		GetFeatureFunction(2);  // 2 = validation function
 
 		// prepare function call
 		LuaAssFile *subsobj = new LuaAssFile(L, subs, false, false);
 		CreateIntegerArray(selected); // selected items
 		lua_pushinteger(L, -1); // active line
-		wxLogDebug(_T("Prepared parameters"));
+
 		// do call
 		LuaThreadedCall call(L, 3, 1);
-		wxLogDebug(_T("Waiting for call to finish"));
 		wxThread::ExitCode code = call.Wait();
-		wxLogDebug(_T("Exit code was %d"), (int)code);
-		wxLogDebug(_T("Getting result"));
 		// get result
 		bool result = !!lua_toboolean(L, -1);
 
 		// clean up stack
 		lua_pop(L, 1);
-		// stack should be empty now
-		assert(lua_gettop(L) == startstack);
-		wxLogDebug(_T("Finished validation"));
 
 		return result;
 	}
 
 	void LuaFeatureMacro::Process(AssFile *subs, std::vector<int> &selected, int active, wxWindow *progress_parent)
 	{
-		LuaStackcheck _stackcheck(L);
-
-		wxLogDebug(_T("Start macro processing"));
-
-		GetFeatureFunction(1);
-		wxLogDebug(_T("Got function"));
-		_stackcheck.check(1);
+		GetFeatureFunction(1); // 1 = processing function
 
 		// prepare function call
 		LuaAssFile *subsobj = new LuaAssFile(L, subs, true, true);
 		CreateIntegerArray(selected); // selected items
 		lua_pushinteger(L, -1); // active line
-		wxLogDebug(_T("Prepared parameters"));
 
 		LuaProgressSink *ps = new LuaProgressSink(L, progress_parent);
 		ps->SetTitle(GetName());
@@ -1441,16 +1410,10 @@ namespace Automation4 {
 		LuaThreadedCall call(L, 3, 0);
 
 		ps->ShowModal();
-		wxLogDebug(_T("Waiting for call to finish"));
 		wxThread::ExitCode code = call.Wait();
-		wxLogDebug(_T("Exit code was %d"), (int)code);
 		if (code) ThrowError();
 
 		delete ps;
-
-		// stack should be empty now
-		_stackcheck.check(0);
-		wxLogDebug(_T("Finished processing"));
 	}
 
 
@@ -1492,17 +1455,13 @@ namespace Automation4 {
 
 	void LuaFeatureFilter::ProcessSubs(AssFile *subs, wxWindow *export_dialog)
 	{
-		wxLogDebug(_T("Start filter processing"));
-	
-		GetFeatureFunction(1);
-		wxLogDebug(_T("Got function"));
+		GetFeatureFunction(1); // 1 = processing function
 
 		// prepare function call
-		// subtitles (don't allow undo, doesn't make sense in export filter context)
-		LuaAssFile *subsobj = new LuaAssFile(L, subs, true, false);
+		// subtitles (undo doesn't make sense in exported subs, in fact it'll totally break the undo system)
+		LuaAssFile *subsobj = new LuaAssFile(L, subs, true/*allow modifications*/, false/*disallow undo*/);
 		// config
 		lua_newtable(L); // TODO
-		wxLogDebug(_T("Prepared parameters"));
 
 		LuaProgressSink *ps = new LuaProgressSink(L, export_dialog);
 		ps->SetTitle(GetName());
@@ -1510,12 +1469,8 @@ namespace Automation4 {
 		// do call
 		LuaThreadedCall call(L, 2, 0);
 
-		//ps->has_inited = true; // debug code only, shouldn't go in production
 		ps->ShowModal();
-
-		wxLogDebug(_T("Waiting for call to finish"));
 		wxThread::ExitCode code = call.Wait();
-		wxLogDebug(_T("Exit code was %d"), (int)code);
 		if (code) ThrowError();
 
 		delete ps;
@@ -1533,7 +1488,7 @@ namespace Automation4 {
 	}
 
 
-	LuaProgressSink::LuaProgressSink(lua_State *_L, wxWindow *parent)
+	LuaProgressSink::LuaProgressSink(lua_State *_L, wxWindow *parent, bool allow_config_dialog)
 		: ProgressSink(parent)
 		, L(_L)
 	{
@@ -1567,6 +1522,14 @@ namespace Automation4 {
 		lua_pushcclosure(L, LuaDebugOut, 1);
 		lua_setfield(L, -2, "out");
 		lua_setfield(L, -2, "debug");
+
+		if (allow_config_dialog) {
+			lua_newtable(L);
+			lua_pushvalue(L, -3);
+			lua_pushcclosure(L, LuaDisplayDialog, 1);
+			lua_setfield(L, -2, "display");
+			lua_setfield(L, -2, "dialog");
+		}
 
 		// reference so other objects can also find the progress sink
 		lua_pushvalue(L, -2);
@@ -1630,12 +1593,34 @@ namespace Automation4 {
 	{
 		LuaProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
 		wxString msg(lua_tostring(L, 1), wxConvUTF8);
-		wxMutexLocker lock(ps->pending_debug_output_mutex);
-		ps->pending_debug_output << _T("\n") << msg;
+		ps->AddDebugOutput(msg);
 		return 0;
 	}
 
-	LuaConfigWindow::LuaConfigWindow(lua_State *_L)
+	int LuaProgressSink::LuaDisplayDialog(lua_State *L)
+	{
+		LuaProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
+
+		// TODO: the config dialog structure should be created here
+
+		// Send the "show dialog" event
+		// See comments in auto4_base.h for more info on this synchronisation
+		{
+			ShowConfigDialogEvent evt;
+			wxSemaphore sema(0, 1);
+			evt.sync_sema = &sema;
+			ps->AddPendingEvent(evt);
+			sema.Wait();
+		}
+
+		// TODO: read out data from dialog structure
+
+		// just return false for now
+		lua_pushboolean(L, 0);
+		return 1;
+	}
+
+	LuaConfigDialog::LuaConfigDialog(lua_State *_L)
 		: L(_L)
 	{
 		// register the single function
@@ -1655,7 +1640,7 @@ namespace Automation4 {
 		lua_pop(L, 1);
 	}
 
-	LuaConfigWindow::~LuaConfigWindow()
+	LuaConfigDialog::~LuaConfigDialog()
 	{
 		// remove the 'aegisub.dialog' table again
 		lua_getglobal(L, "aegisub");
@@ -1664,7 +1649,7 @@ namespace Automation4 {
 		lua_pop(L, 1);
 	}
 
-	int LuaConfigWindow::LuaDisplay(lua_State *L)
+	int LuaConfigDialog::LuaDisplay(lua_State *L)
 	{
 		if (!lua_istable(L, 1)) {
 			lua_pushstring(L, "No dialog definition table given to aegisub.dialog.display");
@@ -1672,8 +1657,8 @@ namespace Automation4 {
 			return 0;
 		}
 
-		lua_pushvalue(L, 1);
-		wxWindow *dlg = CreateWindow(L);
+		//lua_pushvalue(L, 1);
+		//wxWindow *dlg = CreateWindow(L);
 
 		// TODO: return false/nothing for now
 		lua_pushboolean(L, 0);
@@ -1681,14 +1666,13 @@ namespace Automation4 {
 		return 2;
 	}
 
-	wxWindow* LuaConfigWindow::CreateWindow(lua_State *L)
+	wxWindow* LuaConfigDialog::CreateWindow()
 	{
 		// assume top of the stack contains a dialog control table
-		wxWindow *res = new wxWindow();
+		// create stuff here?!
 
 		// remove table from stack
-		lua_pop(L, 1);
-		return res;
+		return 0;
 	}
 
 

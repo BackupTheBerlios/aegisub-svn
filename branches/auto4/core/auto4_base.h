@@ -128,6 +128,7 @@ namespace Automation4 {
 	};
 
 
+	class ScriptConfigDialog;
 	// The Export Filter feature; adds a new export filter
 	class FeatureFilter : public virtual Feature, public AssExportFilter {
 	protected:
@@ -135,13 +136,16 @@ namespace Automation4 {
 
 		// Subclasses should probably implement AssExportFilter::Init
 
+		ScriptConfigDialog *config_dialog;
+		virtual ScriptConfigDialog* GenerateConfigDialog(wxWindow *parent) { /* FIXME */ return 0; }
+
 	public:
 		virtual ~FeatureFilter();
 
-		// Subclasses must implement the AssExportFilter virtual functions:
-		//   ProcessSubs
-		//   GetConfigDialogWindow
-		//   LoadSettings
+		wxWindow* GetConfigDialogWindow(wxWindow *parent) { /* FIXME */ return 0; }
+		void LoadSettings(bool IsDefault) { /* FIXME */ }
+
+		// Subclasses must implement ProcessSubs from AssExportFilter
 	};
 
 
@@ -168,6 +172,52 @@ namespace Automation4 {
 	};
 
 
+	// Base class for script-provided config dialogs
+	class ScriptConfigDialog {
+	private:
+		wxWindow *win;
+
+	protected:
+		virtual wxWindow* CreateWindow(wxWindow *parent) = 0;
+
+	public:
+		wxWindow* GetWindow(wxWindow *parent);
+		void DeleteWindow();
+		virtual void ReadBack() = 0;
+	};
+
+
+	// Config dialog event class and related stuff (wx </3)
+	extern const wxEventType EVT_SHOW_CONFIG_DIALOG_t;
+
+	class ShowConfigDialogEvent : public wxCommandEvent {
+	private:
+
+	public:
+		ShowConfigDialogEvent(const wxEventType &event = EVT_SHOW_CONFIG_DIALOG_t)
+			: wxCommandEvent(event)
+			, config_dialog(0)
+			, sync_sema(0) { };
+
+		virtual wxEvent *Clone() const { return new ShowConfigDialogEvent(*this); }
+
+		ScriptConfigDialog *config_dialog;
+		// Synchronisation for config dialog events:
+		// You don't want the script asynchronically continue executing while the dialog
+		// is displaying, so a synchronisation mechanism is used.
+		// The poster of the event should supply a semaphore object with an initial count
+		// of zero. After posting the event, the poster should wait for the semaphore.
+		// When the dialog is finished, the semaphore is posted, and the poster can
+		// continue.
+		// The poster is responsible for cleaning up the semaphore.
+		wxSemaphore *sync_sema;
+	};
+
+	typedef void (wxEvtHandler::*ShowConfigDialogEventFunction)(ShowConfigDialogEvent&);
+
+#define EVT_SHOW_CONFIG_DIALOG(fn) DECLARE_EVENT_TABLE_ENTRY( EVT_SHOW_CONFIG_DIALOG_t, -1, -1, (wxObjectEventFunction)(wxEventFunction)(ShowConfigDialogEventFunction)&fn, (wxObject*)0 ),
+
+
 	// Base class for progress reporting/other output
 	class ProgressSink : public wxDialog {
 	private:
@@ -180,15 +230,21 @@ namespace Automation4 {
 
 		bool debug_visible;
 
+		float progress;
+		wxString task;
+		wxString title;
+		wxString pending_debug_output;
+		wxMutex data_mutex;
+
 		void OnCancel(wxCommandEvent &evt);
 		void OnInit(wxInitDialogEvent &evt);
 		void OnIdle(wxIdleEvent &evt);
+		void OnConfigDialog(ShowConfigDialogEvent &evt);
+
+		void DoUpdateDisplay();
 
 	protected:
 		volatile bool cancelled;
-
-		wxString pending_debug_output;
-		wxMutex pending_debug_output_mutex;
 
 		ProgressSink(wxWindow *parent);
 		virtual ~ProgressSink();
@@ -197,6 +253,7 @@ namespace Automation4 {
 		void SetProgress(float _progress);
 		void SetTask(const wxString &_task);
 		void SetTitle(const wxString &_title);
+		void AddDebugOutput(const wxString &msg);
 
 		volatile bool has_inited;
 		volatile bool script_finished;

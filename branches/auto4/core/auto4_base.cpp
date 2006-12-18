@@ -271,6 +271,11 @@ namespace Automation4 {
 	}
 
 
+	// ShowConfigDialogEvent
+
+	const wxEventType EVT_SHOW_CONFIG_DIALOG_t = wxNewEventType();
+
+
 	// ProgressSink
 
 	ProgressSink::ProgressSink(wxWindow *parent)
@@ -314,17 +319,27 @@ namespace Automation4 {
 
 	void ProgressSink::OnIdle(wxIdleEvent &evt)
 	{
+		// The big glossy "update display" event
+		DoUpdateDisplay();
+
 		if (script_finished) {
 			if (!debug_visible) {
 				EndModal(0);
 			} else {
 				cancel_button->Enable(true);
 				cancel_button->SetLabel(_("Close"));
+				SetProgress(100.0);
 				SetTask(_("Script completed"));
 			}
 		}
+	}
 
-		wxMutexLocker lock(pending_debug_output_mutex);
+	void ProgressSink::DoUpdateDisplay()
+	{
+		// If debug output isn't handled before the test for script_finished later,
+		// there might actually be some debug output but the debug_visible flag won't
+		// be set before the dialog closes itself.
+		wxMutexLocker lock(data_mutex);
 		if (!pending_debug_output.IsEmpty()) {
 			if (!debug_visible) {
 				sizer->Show(debug_output, true);
@@ -339,42 +354,41 @@ namespace Automation4 {
 
 			pending_debug_output = _T("");
 		}
+
+		progress_display->SetValue((int)(progress*10));
+		task_display->SetLabel(task);
+		title_display->SetLabel(title);
 	}
 
 	void ProgressSink::SetProgress(float _progress)
 	{
-		if (wxThread::IsMain()) {
-			progress_display->SetValue((int)(_progress*10));
-		} else {
-			wxMutexGuiLocker gui;
-			progress_display->SetValue((int)(_progress*10));
-		}
+		wxMutexLocker lock(data_mutex);
+		progress = _progress;
 	}
 
 	void ProgressSink::SetTask(const wxString &_task)
 	{
-		if (wxThread::IsMain()) {
-			task_display->SetLabel(_task);
-		} else {
-			wxMutexGuiLocker gui;
-			task_display->SetLabel(_task);
-		}
+		wxMutexLocker lock(data_mutex);
+		task = _task;
 	}
 
 	void ProgressSink::SetTitle(const wxString &_title)
 	{
-		if (wxThread::IsMain()) {
-			title_display->SetLabel(_title);
-		} else {
-			wxMutexGuiLocker gui;
-			title_display->SetLabel(_title);
-		}
+		wxMutexLocker lock(data_mutex);
+		title = _title;
+	}
+
+	void ProgressSink::AddDebugOutput(const wxString &msg)
+	{
+		wxMutexLocker lock(data_mutex);
+		pending_debug_output << msg;
 	}
 
 	BEGIN_EVENT_TABLE(ProgressSink, wxWindow)
 		EVT_INIT_DIALOG(ProgressSink::OnInit)
 		EVT_BUTTON(wxID_CANCEL, ProgressSink::OnCancel)
 		EVT_IDLE(ProgressSink::OnIdle)
+		EVT_SHOW_CONFIG_DIALOG(ProgressSink::OnConfigDialog)
 	END_EVENT_TABLE()
 
 	void ProgressSink::OnInit(wxInitDialogEvent &evt)
@@ -389,6 +403,19 @@ namespace Automation4 {
 			cancel_button->Enable(false);
 		} else {
 			EndModal(0);
+		}
+	}
+
+	void ProgressSink::OnConfigDialog(ShowConfigDialogEvent &evt)
+	{
+		DoUpdateDisplay();
+
+		// assume we're in the GUI thread here
+		wxMessageBox(_T("config dialog goes here"));
+
+		// synchronise if needed
+		if (evt.sync_sema) {
+			evt.sync_sema->Post();
 		}
 	}
 

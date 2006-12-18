@@ -88,6 +88,8 @@ namespace Automation4 {
 	};
 
 
+	class LuaConfigDialog;
+
 	// Provides progress UI and control functions for a Lua script
 	class LuaProgressSink : public ProgressSink {
 	private:
@@ -98,9 +100,10 @@ namespace Automation4 {
 		static int LuaSetTitle(lua_State *L);
 		static int LuaGetCancelled(lua_State *L);
 		static int LuaDebugOut(lua_State *L);
+		static int LuaDisplayDialog(lua_State *L);
 
 	public:
-		LuaProgressSink(lua_State *_L, wxWindow *parent);
+		LuaProgressSink(lua_State *_L, wxWindow *parent, bool allow_config_dialog = true);
 		virtual ~LuaProgressSink();
 
 		static LuaProgressSink* GetObjPointer(lua_State *L, int idx);
@@ -108,17 +111,17 @@ namespace Automation4 {
 
 
 	// Provides Config UI functions for a Lua script
-	class LuaConfigWindow {
+	class LuaConfigDialog : ScriptConfigDialog {
 	private:
 		lua_State *L;
 
 		static int LuaDisplay(lua_State *L);
 
 	public:
-		LuaConfigWindow(lua_State *_L);
-		virtual ~LuaConfigWindow();
+		LuaConfigDialog(lua_State *_L);
+		virtual ~LuaConfigDialog();
 
-		static wxWindow* CreateWindow(lua_State *L); // top of stack points to a config window description, create a window from that
+		wxWindow* CreateWindow();
 	};
 
 

@@ -8,8 +8,8 @@ script_version = "2"
 
 
 function macro_test2(subtitles, selected_lines, active_line)
-	showmessage(subtitles.n .. " and " .. #subtitles .. " should be the same value")
-	showmessage(subtitles[selected_lines[1]].raw)
+	aegisub.debug.out(subtitles.n .. " and " .. #subtitles .. " should be the same value")
+	aegisub.debug.out(subtitles[selected_lines[1]].raw)
 end
 
 function dumper(subtitles, selected_lines, active_line)
@@ -28,7 +28,7 @@ function dumper(subtitles, selected_lines, active_line)
 		elseif l.class == "dialogue" then
 			s = s .. string.format("layer: %d\nstyle: %s\ntext: %s\n", l.layer, l.style, l.text)
 		end
-		showmessage(s)
+		aegisub.debug.out(s)
 	end
 end
 
