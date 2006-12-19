@@ -1601,78 +1601,58 @@ namespace Automation4 {
 	{
 		LuaProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
 
-		// TODO: the config dialog structure should be created here
-
 		// Send the "show dialog" event
 		// See comments in auto4_base.h for more info on this synchronisation
-		{
-			ShowConfigDialogEvent evt;
-			wxSemaphore sema(0, 1);
-			evt.sync_sema = &sema;
-			ps->AddPendingEvent(evt);
-			sema.Wait();
-		}
+		ShowConfigDialogEvent evt;
 
-		// TODO: read out data from dialog structure
+		LuaConfigDialog dlg(L, true); // magically creates the config dialog structure etc
+		evt.config_dialog = &dlg;
 
-		// just return false for now
-		lua_pushboolean(L, 0);
-		return 1;
+		wxSemaphore sema(0, 1);
+		evt.sync_sema = &sema;
+
+		ps->AddPendingEvent(evt);
+
+		sema.Wait();
+
+		// more magic: puts two values on stack: button pushed and table with control results
+		return dlg.LuaReadBack(L);
 	}
 
-	LuaConfigDialog::LuaConfigDialog(lua_State *_L)
-		: L(_L)
+
+	LuaConfigDialog::LuaConfigDialog(lua_State *L, bool include_buttons)
 	{
-		// register the single function
-
-		// get the global 'aegisub' table
-		lua_getglobal(L, "aegisub");
-		// create a new table, this will be the 'aegisub.dialog' table
-		lua_newtable(L);
-
-		// create new C function from LuaDisplay and add to the 'aegisub.dialog' table
-		lua_pushcclosure(L, LuaDisplay, 0);
-		lua_setfield(L, -2, "display");
-
-		// actually put the 'dialog' table into the 'aegisub' table
-		lua_setfield(L, -2, "dialog");
-		// the stack now just contains the 'aegisub' table, remove that to balance out
-		lua_pop(L, 1);
+		// if there's no buttons, make an empty, fake button table
+		if (!include_buttons) {
+			lua_newtable(L);
+		}
+		// assume top of stack contains a dialog table
+		if (!lua_istable(L, -2)) {
+			lua_pushstring(L, "Cannot create config dialog from something non-table");
+			lua_error(L);
+			throw _T("This shouldn't really be throws ever");
+		}
 	}
 
 	LuaConfigDialog::~LuaConfigDialog()
 	{
-		// remove the 'aegisub.dialog' table again
-		lua_getglobal(L, "aegisub");
-		lua_pushnil(L);
-		lua_setfield(L, -2, "dialog");
-		lua_pop(L, 1);
 	}
 
-	int LuaConfigDialog::LuaDisplay(lua_State *L)
+	wxWindow* LuaConfigDialog::CreateWindow(wxWindow *parent)
 	{
-		if (!lua_istable(L, 1)) {
-			lua_pushstring(L, "No dialog definition table given to aegisub.dialog.display");
-			lua_error(L);
-			return 0;
-		}
-
-		//lua_pushvalue(L, 1);
-		//wxWindow *dlg = CreateWindow(L);
-
-		// TODO: return false/nothing for now
-		lua_pushboolean(L, 0);
-		lua_newtable(L);
-		return 2;
+		// TODO
+		wxStaticText *w = new wxStaticText(parent, -1, _T("this is produced by auto4!"));
+		return w;
 	}
 
-	wxWindow* LuaConfigDialog::CreateWindow()
+	int LuaConfigDialog::LuaReadBack(lua_State *L)
 	{
-		// assume top of the stack contains a dialog control table
-		// create stuff here?!
+		return 0; // TODO
+	}
 
-		// remove table from stack
-		return 0;
+	void LuaConfigDialog::ReadBack()
+	{
+		// TODO
 	}
 
 
@@ -1699,7 +1679,6 @@ namespace Automation4 {
 			}
 		}
 	};
-
-	static LuaScriptFactory _lua_factory;
+	static LuaScriptFactory _script_factory;
 
 };

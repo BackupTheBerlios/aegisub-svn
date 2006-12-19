@@ -163,8 +163,8 @@ function aegisub.dialog.display(dialog, buttons)
 
 @buttons (table)
   Optional. This is an Array Table of strings defining the buttons that appear
-  in the dialog. If this is left out or is otherwise not a table, the standard
-  Ok and Cancel buttons appear.
+  in the dialog. If this is left out, empty or is otherwise not a table, the
+  standard Ok and Cancel buttons appear.
   The strings in this Array Table are used as labels on the buttons, and for
   identifying them in the return values of the function.
 

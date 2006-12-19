@@ -9,9 +9,9 @@ script_version = "1"
 include("utils.lua")
 
 function test7(subtitles, selected_lines, active_line)
-	aegisub.dialog.display()
+	aegisub.dialog.display({}, {})
 	aegisub.progress.set(50)
-	aegisub.dialog.display()
+	aegisub.dialog.display({}, {"foo", "bar"})
 	for i = 0,1000 do
 		local s = 'a' .. i
 	end

@@ -235,6 +235,7 @@ namespace Automation4 {
 	FeatureFilter::FeatureFilter(const wxString &_name, const wxString &_description, int _priority)
 		: Feature(SCRIPTFEATURE_FILTER, _name)
 		, AssExportFilter()
+		, config_dialog(0)
 	{
 		description = _description; // from AssExportFilter
 		Register(_name, _priority);
@@ -243,6 +244,24 @@ namespace Automation4 {
 	FeatureFilter::~FeatureFilter()
 	{
 		Unregister();
+	}
+
+	wxWindow* FeatureFilter::GetConfigDialogWindow(wxWindow *parent) {
+		if (config_dialog) {
+			delete config_dialog;
+			config_dialog = 0;
+		}
+		if (config_dialog = GenerateConfigDialog(parent)) {
+			return config_dialog->GetWindow(parent);
+		} else {
+			return 0;
+		}
+	}
+
+	void FeatureFilter::LoadSettings(bool IsDefault) {
+		if (config_dialog) {
+			config_dialog->ReadBack();
+		}
 	}
 
 
@@ -274,6 +293,21 @@ namespace Automation4 {
 	// ShowConfigDialogEvent
 
 	const wxEventType EVT_SHOW_CONFIG_DIALOG_t = wxNewEventType();
+
+
+	// ScriptConfigDialog
+
+	wxWindow* ScriptConfigDialog::GetWindow(wxWindow *parent)
+	{
+		if (win) return win;
+		return win = CreateWindow(parent);
+	}
+
+	void ScriptConfigDialog::DeleteWindow()
+	{
+		if (win) delete win;
+		win = 0;
+	}
 
 
 	// ProgressSink
@@ -408,12 +442,26 @@ namespace Automation4 {
 
 	void ProgressSink::OnConfigDialog(ShowConfigDialogEvent &evt)
 	{
+		// assume we're in the GUI thread here
+
 		DoUpdateDisplay();
 
-		// assume we're in the GUI thread here
-		wxMessageBox(_T("config dialog goes here"));
+		if (evt.config_dialog) {
+			wxDialog *w = new wxDialog(this, -1, title); // container dialog box
+			wxBoxSizer *s = new wxBoxSizer(wxHORIZONTAL); // sizer for putting contents in
+			wxWindow *ww = evt.config_dialog->GetWindow(w); // get/generate actual dialog contents
+			s->Add(ww); // add contents to dialog
+			w->SetSizerAndFit(s);
+			w->CenterOnParent();
+			w->ShowModal();
+			evt.config_dialog->ReadBack();
+			evt.config_dialog->DeleteWindow();
+			delete w;
+		} else {
+			wxMessageBox(_T("Uh... no config dialog?"));
+		}
 
-		// synchronise if needed
+		// See note in auto4_base.h
 		if (evt.sync_sema) {
 			evt.sync_sema->Post();
 		}

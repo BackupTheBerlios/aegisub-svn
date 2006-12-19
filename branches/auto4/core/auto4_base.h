@@ -131,19 +131,21 @@ namespace Automation4 {
 	class ScriptConfigDialog;
 	// The Export Filter feature; adds a new export filter
 	class FeatureFilter : public virtual Feature, public AssExportFilter {
+	private:
+		ScriptConfigDialog *config_dialog;
+
 	protected:
 		FeatureFilter(const wxString &_name, const wxString &_description, int _priority);
 
 		// Subclasses should probably implement AssExportFilter::Init
 
-		ScriptConfigDialog *config_dialog;
-		virtual ScriptConfigDialog* GenerateConfigDialog(wxWindow *parent) { /* FIXME */ return 0; }
+		virtual ScriptConfigDialog* GenerateConfigDialog(wxWindow *parent) = 0; // subclasses should implement this, producing a new ScriptConfigDialog
 
 	public:
 		virtual ~FeatureFilter();
 
-		wxWindow* GetConfigDialogWindow(wxWindow *parent) { /* FIXME */ return 0; }
-		void LoadSettings(bool IsDefault) { /* FIXME */ }
+		wxWindow* GetConfigDialogWindow(wxWindow *parent);
+		void LoadSettings(bool IsDefault);
 
 		// Subclasses must implement ProcessSubs from AssExportFilter
 	};
@@ -181,6 +183,7 @@ namespace Automation4 {
 		virtual wxWindow* CreateWindow(wxWindow *parent) = 0;
 
 	public:
+		ScriptConfigDialog() : win(0) { }
 		wxWindow* GetWindow(wxWindow *parent);
 		void DeleteWindow();
 		virtual void ReadBack() = 0;
@@ -191,8 +194,6 @@ namespace Automation4 {
 	extern const wxEventType EVT_SHOW_CONFIG_DIALOG_t;
 
 	class ShowConfigDialogEvent : public wxCommandEvent {
-	private:
-
 	public:
 		ShowConfigDialogEvent(const wxEventType &event = EVT_SHOW_CONFIG_DIALOG_t)
 			: wxCommandEvent(event)

@@ -111,17 +111,27 @@ namespace Automation4 {
 
 
 	// Provides Config UI functions for a Lua script
-	class LuaConfigDialog : ScriptConfigDialog {
+	class LuaConfigDialog : public ScriptConfigDialog {
 	private:
-		lua_State *L;
+		class Control {
+		public:
+			wxWindow *w;
+			virtual wxWindow *Create(lua_State *L, wxWindow *parent) = 0;
+			virtual void ReadBack(lua_State *L);
+		};
+		std::vector<Control*> controls;
+		std::vector<wxString> buttons;
+		bool use_buttons;
 
-		static int LuaDisplay(lua_State *L);
+	protected:
+		wxWindow* CreateWindow(wxWindow *parent);
 
 	public:
-		LuaConfigDialog(lua_State *_L);
+		LuaConfigDialog(lua_State *_L, bool include_buttons);
 		virtual ~LuaConfigDialog();
+		int LuaReadBack(lua_State *L); // read back internal structure to lua structures
 
-		wxWindow* CreateWindow();
+		void ReadBack(); // from auto4 base
 	};
 
 
@@ -199,6 +209,8 @@ namespace Automation4 {
 		// some kind of dialog data struct will go here at some time
 	protected:
 		LuaFeatureFilter(const wxString &_name, const wxString &_description, int merit, lua_State *_L);
+
+		ScriptConfigDialog* GenerateConfigDialog(wxWindow *parent) { return 0; }
 
 		void Init();
 	public:
