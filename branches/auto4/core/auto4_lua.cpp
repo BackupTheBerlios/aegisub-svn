@@ -49,6 +49,8 @@
 
 namespace Automation4 {
 
+	// LuaStackcheck
+
 #ifdef _DEBUG
 	struct LuaStackcheck {
 		lua_State *L;
@@ -90,6 +92,8 @@ namespace Automation4 {
 	};
 #endif
 
+
+	// LuaAssFile
 
 	void LuaAssFile::CheckAllowModify()
 	{
@@ -1011,6 +1015,8 @@ namespace Automation4 {
 	}
 
 
+	// LuaScript
+
 	LuaScript::LuaScript(const wxString &filename)
 		: Script(filename)
 		, L(0)
@@ -1235,6 +1241,8 @@ namespace Automation4 {
 	}
 
 
+	// LuaThreadedCall
+
 	LuaThreadedCall::LuaThreadedCall(lua_State *_L, int _nargs, int _nresults)
 		: wxThread(wxTHREAD_JOINABLE)
 		, L(_L)
@@ -1264,6 +1272,8 @@ namespace Automation4 {
 		return (wxThread::ExitCode)result;
 	}
 
+
+	// LuaFeature
 
 	LuaFeature::LuaFeature(lua_State *_L, ScriptFeatureClass _featureclass, const wxString &_name)
 		: Feature(_featureclass, _name)
@@ -1322,6 +1332,8 @@ namespace Automation4 {
 		wxLogError(err);
 	}
 
+
+	// LuaFeatureMacro
 
 	int LuaFeatureMacro::LuaRegister(lua_State *L)
 	{
@@ -1417,6 +1429,8 @@ namespace Automation4 {
 	}
 
 
+	// LuaFeatureFilter
+
 	LuaFeatureFilter::LuaFeatureFilter(const wxString &_name, const wxString &_description, int merit, lua_State *_L)
 		: LuaFeature(_L, SCRIPTFEATURE_FILTER, _name)
 		, FeatureFilter(_name, _description, merit)
@@ -1487,6 +1501,8 @@ namespace Automation4 {
 		// TODO (leave config dialogs alone for now)
 	}
 
+
+	// LuaProgressSink
 
 	LuaProgressSink::LuaProgressSink(lua_State *_L, wxWindow *parent, bool allow_config_dialog)
 		: ProgressSink(parent)
@@ -1601,6 +1617,16 @@ namespace Automation4 {
 	{
 		LuaProgressSink *ps = GetObjPointer(L, lua_upvalueindex(1));
 
+		// Check that two arguments were actually given
+		// If only one, add another empty table for buttons
+		if (lua_gettop(L) == 1) {
+			lua_newtable(L);
+		}
+		// If more than two, remove the excess
+		if (lua_gettop(L) > 2) {
+			lua_settop(L, 2);
+		}
+
 		// Send the "show dialog" event
 		// See comments in auto4_base.h for more info on this synchronisation
 		ShowConfigDialogEvent evt;
@@ -1620,22 +1646,67 @@ namespace Automation4 {
 	}
 
 
+	// LuaConfigDialog
+
+	LuaConfigDialog::Control::Control(lua_State *L)
+	{
+		// Assume top of stack is a control table (don't do checking)
+
+		lua_getfield(L, -1, "name");
+		name = wxString(lua_tostring(L, -1), wxConvUTF8);
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "x");
+		x = lua_tointeger(L, -1);
+		if (x < 1) x = 1;
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "y");
+		y = lua_tointeger(L, -1);
+		if (y < 1) y = 1;
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "width");
+		width = lua_tointeger(L, -1);
+		if (width < 1) width = 1;
+		lua_pop(L, 1);
+
+		lua_getfield(L, -1, "height");
+		height = lua_tointeger(L, -1);
+		if (height < 1) height = 1;
+		lua_pop(L, 1);
+	}
+
 	LuaConfigDialog::LuaConfigDialog(lua_State *L, bool include_buttons)
 	{
-		// if there's no buttons, make an empty, fake button table
-		if (!include_buttons) {
-			lua_newtable(L);
+		if (include_buttons) {
+			if (!lua_istable(L, -1))
+				// Just to avoid deeper indentation...
+				goto skipbuttons;
+			// Iterate over items in table
+			while (lua_next(L, -1)) {
+				// Simply skip invalid items... FIXME, warn here?
+				if (lua_isstring(L, -1)) {
+					wxString s(lua_tostring(L, -1), wxConvUTF8);
+					buttons.push_back(s);
+				}
+				lua_pop(L, 1);
+			}
+skipbuttons:
+			lua_pop(L, 1);
 		}
-		// assume top of stack contains a dialog table
-		if (!lua_istable(L, -2)) {
+
+		// assume top of stack now contains a dialog table
+		if (!lua_istable(L, -1)) {
 			lua_pushstring(L, "Cannot create config dialog from something non-table");
 			lua_error(L);
-			throw _T("This shouldn't really be throws ever");
+			assert(false);
 		}
 	}
 
 	LuaConfigDialog::~LuaConfigDialog()
 	{
+		for (int i = 0; i < controls.size(); ++i) delete controls[i];
 	}
 
 	wxWindow* LuaConfigDialog::CreateWindow(wxWindow *parent)
@@ -1679,6 +1750,11 @@ namespace Automation4 {
 			}
 		}
 	};
-	static LuaScriptFactory _script_factory;
+	LuaScriptFactory *_script_factory;
 
 };
+
+void Initialise_Auto4Lua()
+{
+	Automation4::_script_factory = new Automation4::LuaScriptFactory;
+}

@@ -56,10 +56,3 @@ public:
 	wxWindow *GetConfigDialogWindow(wxWindow *parent);
 	void LoadSettings(bool IsDefault);
 };
-
-
-///////
-// IDs
-enum {
-	Get_Input_From_Video = 2000
-};

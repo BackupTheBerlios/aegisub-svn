@@ -55,6 +55,9 @@
 #include "subs_grid.h"
 
 #include "auto4_base.h"
+#if USE_AUTO4_LUA == 1
+#include "auto4_lua.h"
+#endif
 
 
 ///////////////////
@@ -97,6 +100,11 @@ bool AegisubApp::OnInit() {
 			Options.Save();
 		}
 		locale.Init(lang);
+
+		// Init various other parts
+#if USE_AUTO4_LUA == 1
+		Initialise_Auto4Lua();
+#endif
 
 		// Load Automation scripts
 		global_scripts = new Automation4::AutoloadScriptManager(Options.AsText(_T("Automation Autoload Path")));

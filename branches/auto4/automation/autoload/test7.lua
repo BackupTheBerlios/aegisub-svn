@@ -18,5 +18,4 @@ function test7(subtitles, selected_lines, active_line)
 end
 
 
-
 aegisub.register_macro("Config Dialog 1", "Show a stupid config dialog", "video", test7, nil)

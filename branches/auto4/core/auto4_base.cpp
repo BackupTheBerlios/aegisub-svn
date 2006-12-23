@@ -450,7 +450,7 @@ namespace Automation4 {
 			wxDialog *w = new wxDialog(this, -1, title); // container dialog box
 			wxBoxSizer *s = new wxBoxSizer(wxHORIZONTAL); // sizer for putting contents in
 			wxWindow *ww = evt.config_dialog->GetWindow(w); // get/generate actual dialog contents
-			s->Add(ww); // add contents to dialog
+			s->Add(ww, 0, wxALL, 5); // add contents to dialog
 			w->SetSizerAndFit(s);
 			w->CenterOnParent();
 			w->ShowModal();

@@ -116,8 +116,13 @@ namespace Automation4 {
 		class Control {
 		public:
 			wxWindow *w;
-			virtual wxWindow *Create(lua_State *L, wxWindow *parent) = 0;
-			virtual void ReadBack(lua_State *L);
+			wxString name;
+			int x, y, width, height;
+
+			virtual wxWindow *Create(wxWindow *parent) = 0;
+			virtual void ReadBack(lua_State *L) = 0;
+
+			Control(lua_State *L);
 		};
 		std::vector<Control*> controls;
 		std::vector<wxString> buttons;
@@ -221,6 +226,9 @@ namespace Automation4 {
 		void LoadSettings(bool IsDefault);
 	};
 
+	// More or less dummy-function to make sure auto4_lua.cpp is linked in
 };
+
+void Initialise_Auto4Lua();
 
 #endif

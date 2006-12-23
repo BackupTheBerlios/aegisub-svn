@@ -43,7 +43,7 @@ height (number)
 Key defined for all classes except "label":
 
 hint (string)
-  A string displayed to the 
+  A string displayed to the user as tooltip, when hovering over the control.
 
 
 Keys defined only for "label" and "checkbox" classes:
