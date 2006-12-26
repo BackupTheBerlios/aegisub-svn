@@ -125,14 +125,20 @@ namespace Automation4 {
 		LuaConfigDialogControl(lua_State *L);
 	};
 
-	class LuaConfigDialog : public ScriptConfigDialog, wxEvtHandler {
+	class LuaConfigDialog : public ScriptConfigDialog {
 	private:
 		std::vector<LuaConfigDialogControl*> controls;
 		std::vector<wxString> buttons;
 		bool use_buttons;
-		int button_pushed;
 
-		void OnButtonPush(wxCommandEvent &evt);
+		class ButtonEventHandler : public wxEvtHandler {
+		public:
+			int *button_pushed;
+			void OnButtonPush(wxCommandEvent &evt);
+		};
+
+		ButtonEventHandler *button_event;
+		int button_pushed;
 
 	protected:
 		wxWindow* CreateWindow(wxWindow *parent);
@@ -232,9 +238,9 @@ namespace Automation4 {
 		void LoadSettings(bool IsDefault);
 	};
 
-	// More or less dummy-function to make sure auto4_lua.cpp is linked in
 };
 
+// More or less dummy-function to make sure auto4_lua.cpp is linked in
 void Initialise_Auto4Lua();
 
 #endif
