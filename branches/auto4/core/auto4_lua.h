@@ -111,22 +111,28 @@ namespace Automation4 {
 
 
 	// Provides Config UI functions for a Lua script
-	class LuaConfigDialog : public ScriptConfigDialog {
+
+	class LuaConfigDialogControl {
+	public:
+		wxControl *cw; // control window
+		wxString name, hint;
+		int x, y, width, height;
+
+		virtual wxControl *Create(wxWindow *parent) = 0;
+		virtual void ControlReadBack() = 0;
+		virtual void LuaReadBack(lua_State *L) = 0;
+
+		LuaConfigDialogControl(lua_State *L);
+	};
+
+	class LuaConfigDialog : public ScriptConfigDialog, wxEvtHandler {
 	private:
-		class Control {
-		public:
-			wxWindow *w;
-			wxString name;
-			int x, y, width, height;
-
-			virtual wxWindow *Create(wxWindow *parent) = 0;
-			virtual void ReadBack(lua_State *L) = 0;
-
-			Control(lua_State *L);
-		};
-		std::vector<Control*> controls;
+		std::vector<LuaConfigDialogControl*> controls;
 		std::vector<wxString> buttons;
 		bool use_buttons;
+		int button_pushed;
+
+		void OnButtonPush(wxCommandEvent &evt);
 
 	protected:
 		wxWindow* CreateWindow(wxWindow *parent);
