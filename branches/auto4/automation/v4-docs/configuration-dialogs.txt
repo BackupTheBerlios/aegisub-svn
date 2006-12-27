@@ -24,11 +24,6 @@ class (string)
     "checkbox",
     "color", "coloralpha", "alpha"
 
-name (string)
-  A name that uniquely identifies the control. This is recommended to be a
-  string easily used as an identifier in Lua, since it will be used to access
-  the value input into the control.
-
 x (number)
 y (number)
 width (number)
@@ -40,10 +35,15 @@ height (number)
   instead.
 
 
-Key defined for all classes except "label":
+Keys defined for all classes except "label":
 
 hint (string)
   A string displayed to the user as tooltip, when hovering over the control.
+
+name (string)
+  A name that uniquely identifies the control. This is recommended to be a
+  string easily used as an identifier in Lua, since it will be used to access
+  the value input into the control.
 
 
 Keys defined only for "label" and "checkbox" classes:

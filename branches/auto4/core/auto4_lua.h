@@ -111,7 +111,6 @@ namespace Automation4 {
 
 
 	// Provides Config UI functions for a Lua script
-
 	class LuaConfigDialogControl {
 	public:
 		wxControl *cw; // control window
@@ -223,19 +222,18 @@ namespace Automation4 {
 	class LuaFeatureFilter : public FeatureFilter, LuaFeature {
 	private:
 		bool has_config;
-		// some kind of dialog data struct will go here at some time
+		LuaConfigDialog *config_dialog;
+
 	protected:
 		LuaFeatureFilter(const wxString &_name, const wxString &_description, int merit, lua_State *_L);
 
-		ScriptConfigDialog* GenerateConfigDialog(wxWindow *parent) { return 0; }
+		ScriptConfigDialog* GenerateConfigDialog(wxWindow *parent);
 
 		void Init();
 	public:
 		static int LuaRegister(lua_State *L);
 
 		void ProcessSubs(AssFile *subs, wxWindow *export_dialog);
-		wxWindow *GetConfigDialogWindow(wxWindow *parent);
-		void LoadSettings(bool IsDefault);
 	};
 
 };

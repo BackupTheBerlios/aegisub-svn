@@ -53,32 +53,58 @@ namespace Automation4 {
 		// Assume top of stack is a control table (don't do checking)
 
 		lua_getfield(L, -1, "name");
-		name = wxString(lua_tostring(L, -1), wxConvUTF8);
+		if (lua_isstring(L, -1)) {
+			name = wxString(lua_tostring(L, -1), wxConvUTF8);
+		} else {
+			name = _T("");
+		}
 		lua_pop(L, 1);
 
 		lua_getfield(L, -1, "x");
-		x = lua_tointeger(L, -1)-1;
-		if (x < 0) x = 0;
+		if (lua_isnumber(L, -1)) {
+			x = lua_tointeger(L, -1);
+			if (x < 0) x = 0;
+		} else {
+			x = 0;
+		}
 		lua_pop(L, 1);
 
 		lua_getfield(L, -1, "y");
-		y = lua_tointeger(L, -1)-1;
-		if (y < 0) y = 0;
+		if (lua_isnumber(L, -1)) {
+			y = lua_tointeger(L, -1);
+			if (y < 0) y = 0;
+		} else {
+			y = 0;
+		}
 		lua_pop(L, 1);
 
 		lua_getfield(L, -1, "width");
-		width = lua_tointeger(L, -1);
-		if (width < 1) width = 1;
+		if (lua_isnumber(L, -1)) {
+			width = lua_tointeger(L, -1);
+			if (width < 1) width = 1;
+		} else {
+			width = 1;
+		}
 		lua_pop(L, 1);
 
 		lua_getfield(L, -1, "height");
-		height = lua_tointeger(L, -1);
-		if (height < 1) height = 1;
+		if (lua_isnumber(L, -1)) {
+			height = lua_tointeger(L, -1);
+			if (height < 1) height = 1;
+		} else {
+			height = 1;
+		}
 		lua_pop(L, 1);
 
 		lua_getfield(L, -1, "hint");
-		hint = wxString(lua_tostring(L, -1), wxConvUTF8);
+		if (lua_isstring(L, -1)) {
+			hint = wxString(lua_tostring(L, -1), wxConvUTF8);
+		} else {
+			hint = _T("");
+		}
 		lua_pop(L, 1);
+
+		wxLogDebug(_T("created control: '%s', (%d,%d)(%d,%d), '%s'"), name.c_str(), x, y, width, height, hint.c_str());
 	}
 
 	namespace LuaControl {
@@ -360,6 +386,7 @@ nospin:
 	// LuaConfigDialog
 
 	LuaConfigDialog::LuaConfigDialog(lua_State *L, bool include_buttons)
+		: use_buttons(include_buttons)
 	{
 		wxLogDebug(_T("creating LuaConfigDialog, this addr is %p"), this);
 		button_pushed = 0;
@@ -453,12 +480,16 @@ badcontrol:
 	wxWindow* LuaConfigDialog::CreateWindow(wxWindow *parent)
 	{
 		wxWindow *w = new wxPanel(parent);
-		wxGridBagSizer *s = new wxGridBagSizer(2, 2);
+		wxGridBagSizer *s = new wxGridBagSizer(4, 4);
 
 		for (size_t i = 0; i < controls.size(); ++i) {
 			LuaConfigDialogControl *c = controls[i];
 			c->Create(w);
-			s->Add(c->cw, wxGBPosition(c->x, c->y), wxGBSpan(c->width, c->height));
+			if (dynamic_cast<LuaControl::Label*>(c)) {
+				s->Add(c->cw, wxGBPosition(c->y, c->x), wxGBSpan(c->height, c->width), wxALIGN_CENTRE_VERTICAL|wxALIGN_LEFT);
+			} else {
+				s->Add(c->cw, wxGBPosition(c->y, c->x), wxGBSpan(c->height, c->width), wxEXPAND);
+			}
 		}
 
 		if (use_buttons) {

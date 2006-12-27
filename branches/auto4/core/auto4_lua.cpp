@@ -553,9 +553,12 @@ namespace Automation4 {
 		// subtitles (undo doesn't make sense in exported subs, in fact it'll totally break the undo system)
 		LuaAssFile *subsobj = new LuaAssFile(L, subs, true/*allow modifications*/, false/*disallow undo*/);
 		// config
-		lua_newtable(L); // TODO
+		if (has_config && config_dialog) {
+			assert(config_dialog->LuaReadBack(L) == 1);
+			// TODO, write back stored options here
+		}
 
-		LuaProgressSink *ps = new LuaProgressSink(L, export_dialog);
+		LuaProgressSink *ps = new LuaProgressSink(L, export_dialog, false);
 		ps->SetTitle(GetName());
 
 		// do call
@@ -568,15 +571,33 @@ namespace Automation4 {
 		delete ps;
 	}
 
-	wxWindow *LuaFeatureFilter::GetConfigDialogWindow(wxWindow *parent)
+	ScriptConfigDialog* LuaFeatureFilter::GenerateConfigDialog(wxWindow *parent)
 	{
-		// TODO (leave config dialogs alone for now)
-		return 0;
-	}
+		if (!has_config)
+			return 0;
 
-	void LuaFeatureFilter::LoadSettings(bool IsDefault)
-	{
-		// TODO (leave config dialogs alone for now)
+		GetFeatureFunction(2); // 2 = config dialog function
+
+		// prepare function call
+		// subtitles (don't allow any modifications during dialog creation, ideally the subs aren't even accessed)
+		LuaAssFile *subsobj = new LuaAssFile(L, AssFile::top, false/*allow modifications*/, false/*disallow undo*/);
+		// stored options
+		lua_newtable(L); // TODO, nothing for now
+
+		LuaProgressSink *ps = new LuaProgressSink(L, 0, false);
+		ps->SetTitle(GetName());
+
+		// do call
+		LuaThreadedCall call(L, 2, 1);
+
+		ps->ShowModal();
+		wxThread::ExitCode code = call.Wait();
+		if (code) ThrowError();
+
+		delete ps;
+
+		// The config dialog table should now be on stack
+		return config_dialog = new LuaConfigDialog(L, false);
 	}
 
 
